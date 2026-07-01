@@ -160,7 +160,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Accept and Install", "Aceitar e Instalar"),
         ("End-user license agreement", "Acordo de licença do usuário final"),
         ("Generating ...", "Gerando ..."),
-        ("Your installation is lower version.", "Sua instalação está com uma versão desatualizada."),
+        ("Your installation is lower version.", "Instalação desatualizada"),
         ("not_close_tcp_tip", "Não feche esta janela enquanto estiver utilizando o túnel"),
         ("Listening ...", "Escutando ..."),
         ("Remote Host", "Host Remoto"),
@@ -321,7 +321,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Fullscreen", "Tela Cheia"),
         ("Mobile Actions", "Ações móveis"),
         ("Select Monitor", "Selecionar tela"),
-        ("Control Actions", "Ações de controle"),
+        ("Control Actions", "Controlar ações"),
         ("Display Settings", "Configurações de exibição"),
         ("Ratio", "Proporção"),
         ("Image Quality", "Qualidade de imagem"),
@@ -761,7 +761,5 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Switch display", "Trocar de tela"),
         ("Show monitor switch button on the main toolbar", "Mostrar botão de troca de tela na barra de ferramentas"),
         ("Show on the minimized toolbar", "Mostrar na barra de ferramentas minimizada"),
-        ("All monitors", "Todas as telas"),
-        ("#{} monitor", "Tela {}"),
     ].iter().cloned().collect();
 }

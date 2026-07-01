@@ -240,36 +240,6 @@ pub enum AuthConnType {
     Terminal,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(i64)]
-enum ConnAuditPrimaryAuth {
-    None = 0,
-    Click = 1,
-    TemporaryPassword = 2,
-    PermanentPassword = 3,
-    SwitchSides = 4,
-}
-
-impl ConnAuditPrimaryAuth {
-    fn as_i64(self) -> i64 {
-        self as i64
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(i64)]
-enum ConnAuditTwoFactor {
-    None = 0,
-    Totp = 1,
-    TrustedDevice = 2,
-}
-
-impl ConnAuditTwoFactor {
-    fn as_i64(self) -> i64 {
-        self as i64
-    }
-}
-
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[derive(Clone, Debug)]
 enum TerminalUserToken {
@@ -340,7 +310,6 @@ pub struct Connection {
     video_ack_required: bool,
     server_audit_conn: String,
     server_audit_file: String,
-    controlled_context: Option<ControlledContext>,
     lr: LoginRequest,
     peer_argb: u32,
     session_last_recv_time: Option<Arc<Mutex<Instant>>>,
@@ -375,8 +344,6 @@ pub struct Connection {
     // For post requests that need to be sent sequentially.
     // eg. post_conn_audit
     tx_post_seq: mpsc::UnboundedSender<(String, Value)>,
-    conn_audit_primary_auth: ConnAuditPrimaryAuth,
-    conn_audit_two_factor: ConnAuditTwoFactor,
     // Tracks read job IDs delegated to CM process.
     // When a read job is delegated to CM (via FS::ReadFile), the job id is added here.
     // Used to filter stale responses (FileBlockFromCM, FileReadDone, etc.) for
@@ -440,12 +407,8 @@ impl Connection {
         stream: super::Stream,
         id: i32,
         server: super::ServerPtrWeak,
-        meta: super::ConnectionMeta,
+        control_permissions: Option<ControlPermissions>,
     ) {
-        let super::ConnectionMeta {
-            control_permissions,
-            controlled_context,
-        } = meta;
         // Android is not supported yet, so we always set control_permissions to None.
         #[cfg(target_os = "android")]
         let control_permissions = None;
@@ -532,7 +495,6 @@ impl Connection {
             video_ack_required: false,
             server_audit_conn: "".to_owned(),
             server_audit_file: "".to_owned(),
-            controlled_context,
             lr: Default::default(),
             peer_argb: 0u32,
             session_last_recv_time: None,
@@ -574,8 +536,6 @@ impl Connection {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             terminal_user_token: None,
             terminal_generic_service: None,
-            conn_audit_primary_auth: ConnAuditPrimaryAuth::None,
-            conn_audit_two_factor: ConnAuditTwoFactor::None,
         };
         let addr = hbb_common::try_into_v4(addr);
         if !conn.on_open(addr).await {
@@ -659,7 +619,6 @@ impl Connection {
                 Some(data) = rx_from_cm.recv() => {
                     match data {
                         ipc::Data::Authorize => {
-                            conn.set_conn_audit_primary_auth(ConnAuditPrimaryAuth::Click);
                             conn.require_2fa.take();
                             if !conn.send_logon_response_and_keep_alive().await {
                                 break;
@@ -1349,7 +1308,7 @@ impl Connection {
         {
             self.send_login_error("Your ip is blocked by the peer")
                 .await;
-            self.post_alarm_audit(
+            Self::post_alarm_audit(
                 AlarmAuditType::IpWhitelist, //"ip whitelist",
                 json!({ "ip":addr.ip() }),
             );
@@ -1375,14 +1334,10 @@ impl Connection {
         msg_out.set_hash(self.hash.clone());
         self.send(msg_out).await;
         self.get_api_server();
-        let mut audit = json!({
+        self.post_conn_audit(json!({
             "ip": addr.ip(),
             "action": "new",
-        });
-        if let Some(audit_ref) = self.conn_audit_ref() {
-            audit["conn_audit_ref"] = json!(audit_ref);
-        }
-        self.post_conn_audit(audit);
+        }));
         true
     }
 
@@ -1397,18 +1352,6 @@ impl Connection {
             Config::get_option("custom-rendezvous-server"),
             "file".to_owned(),
         );
-    }
-
-    fn conn_audit_ref(&self) -> Option<&str> {
-        let audit_ref = self
-            .controlled_context
-            .as_ref()
-            .map(|c| c.conn_audit_ref.as_str())?;
-        if audit_ref.is_empty() {
-            None
-        } else {
-            Some(audit_ref)
-        }
     }
 
     fn post_conn_audit(&self, v: Value) {
@@ -1465,7 +1408,6 @@ impl Connection {
             "id":json!(Config::get_id()),
             "uuid":json!(crate::encode64(hbb_common::get_uuid())),
             "peer_id":json!(self.lr.my_id),
-            "conn_id":json!(self.inner.id()),
             "type": r#type as i8,
             "path":path,
             "is_file":is_file,
@@ -1476,7 +1418,7 @@ impl Connection {
         });
     }
 
-    fn post_alarm_audit(&self, typ: AlarmAuditType, info: Value) {
+    pub fn post_alarm_audit(typ: AlarmAuditType, info: Value) {
         let url = crate::get_audit_server(
             Config::get_option("api-server"),
             Config::get_option("custom-rendezvous-server"),
@@ -1490,12 +1432,6 @@ impl Connection {
         v["uuid"] = json!(crate::encode64(hbb_common::get_uuid()));
         v["typ"] = json!(typ as i8);
         v["info"] = serde_json::Value::String(info.to_string());
-        v["conn_id"] = json!(self.inner.id());
-        if typ == AlarmAuditType::IpWhitelist {
-            if let Some(audit_ref) = self.conn_audit_ref() {
-                v["conn_audit_ref"] = json!(audit_ref);
-            }
-        }
         tokio::spawn(async move {
             allow_err!(Self::post_audit_async(url, v).await);
         });
@@ -1504,23 +1440,6 @@ impl Connection {
     #[inline]
     async fn post_audit_async(url: String, v: Value) -> ResultType<String> {
         crate::post_request(url, v.to_string(), "").await
-    }
-
-    fn set_conn_audit_primary_auth(&mut self, method: ConnAuditPrimaryAuth) {
-        self.conn_audit_primary_auth = method;
-    }
-
-    fn set_conn_audit_two_factor(&mut self, two_factor: ConnAuditTwoFactor) {
-        self.conn_audit_two_factor = two_factor;
-    }
-
-    fn normalize_conn_audit_auth_fields(&mut self) {
-        if matches!(
-            self.conn_audit_primary_auth,
-            ConnAuditPrimaryAuth::Click | ConnAuditPrimaryAuth::SwitchSides
-        ) {
-            self.conn_audit_two_factor = ConnAuditTwoFactor::None;
-        }
     }
 
     fn normalize_port_forward_target(pf: &mut PortForward) -> (String, bool) {
@@ -1646,15 +1565,9 @@ impl Connection {
             .unwrap()
             .get(&self.session_key())
             .map(|s| s.last_recv_time.clone());
-        self.normalize_conn_audit_auth_fields();
-        let mut audit = json!({"peer": ((&self.lr.my_id, &self.lr.my_name)), "type": conn_type});
-        if self.conn_audit_primary_auth != ConnAuditPrimaryAuth::None {
-            audit["primary_auth"] = json!(self.conn_audit_primary_auth.as_i64());
-        }
-        if self.conn_audit_two_factor != ConnAuditTwoFactor::None {
-            audit["two_factor"] = json!(self.conn_audit_two_factor.as_i64());
-        }
-        self.post_conn_audit(audit);
+        self.post_conn_audit(
+            json!({"peer": ((&self.lr.my_id, &self.lr.my_name)), "type": conn_type}),
+        );
         #[allow(unused_mut)]
         let mut username = crate::platform::get_active_username();
         let mut res = LoginResponse::new();
@@ -2266,7 +2179,6 @@ impl Connection {
         if password::temporary_enabled() {
             let password = password::temporary_password();
             if self.validate_password_plain(&password) {
-                self.set_conn_audit_primary_auth(ConnAuditPrimaryAuth::TemporaryPassword);
                 raii::AuthedConnID::update_or_insert_session(
                     self.session_key(),
                     Some(password),
@@ -2290,7 +2202,6 @@ impl Connection {
                 if local_permanent_password_storage_is_usable_for_auth(&local_storage, &local_salt)
                     && self.validate_password_storage(&local_storage)
                 {
-                    self.set_conn_audit_primary_auth(ConnAuditPrimaryAuth::PermanentPassword);
                     print_fallback();
                     return true;
                 }
@@ -2299,7 +2210,6 @@ impl Connection {
                 if preset_permanent_password_storage_is_usable_for_auth(&hard, &salt)
                     && self.validate_preset_password_storage(&hard, &salt)
                 {
-                    self.set_conn_audit_primary_auth(ConnAuditPrimaryAuth::PermanentPassword);
                     print_fallback();
                     return true;
                 }
@@ -2324,11 +2234,6 @@ impl Connection {
                 && (tfa && session.tfa
                     || !tfa && self.validate_password_plain(&session.random_password))
             {
-                if tfa {
-                    self.set_conn_audit_two_factor(ConnAuditTwoFactor::Totp);
-                } else {
-                    self.set_conn_audit_primary_auth(ConnAuditPrimaryAuth::TemporaryPassword);
-                }
                 log::info!("is recent session");
                 return true;
             }
@@ -2422,7 +2327,6 @@ impl Connection {
                     && device.platform == lr.my_platform
                 {
                     log::info!("2FA bypassed by trusted devices");
-                    self.set_conn_audit_two_factor(ConnAuditTwoFactor::TrustedDevice);
                     self.require_2fa = None;
                 }
             }
@@ -2715,7 +2619,6 @@ impl Connection {
                     if res {
                         self.update_failure(failure, true, 1);
                         self.require_2fa.take();
-                        self.set_conn_audit_two_factor(ConnAuditTwoFactor::Totp);
                         raii::AuthedConnID::set_session_2fa(self.session_key());
                         if !self.send_logon_response_and_keep_alive().await {
                             return false;
@@ -2771,7 +2674,6 @@ impl Connection {
                     if let Some((_instant, uuid_old)) = uuid_old {
                         if uuid == uuid_old {
                             self.from_switch = true;
-                            self.set_conn_audit_primary_auth(ConnAuditPrimaryAuth::SwitchSides);
                             if !self.send_logon_response_and_keep_alive().await {
                                 return false;
                             }
@@ -3766,7 +3668,7 @@ impl Connection {
                         );
                         self.send_login_error("Please try 1 minute later").await;
                         sleep(1.).await;
-                        self.post_alarm_audit(
+                        Self::post_alarm_audit(
                             AlarmAuditType::TerminalOsLoginConcurrency,
                             json!({
                                 "ip": self.ip,
@@ -3954,7 +3856,7 @@ impl Connection {
                 prefix_num
             ))
             .await;
-            self.post_alarm_audit(
+            Self::post_alarm_audit(
                 AlarmAuditType::ExceedIPv6PrefixAttempts,
                 json!({
                             "ip": self.ip,
@@ -3999,7 +3901,7 @@ impl Connection {
                 if let Some(audit) = decision.audit {
                     // For OS blocked/backoff events, we currently emit one alarm report per blocked attempt.
                     // TODO: Add unified cumulative/aggregation fields across alarm producers.
-                    self.post_alarm_audit(
+                    Self::post_alarm_audit(
                         audit,
                         json!({
                                     "ip": self.ip,
@@ -4036,7 +3938,7 @@ impl Connection {
 
         let res = if failure.2 > 30 {
             self.send_login_error("Too many wrong attempts").await;
-            self.post_alarm_audit(
+            Self::post_alarm_audit(
                 AlarmAuditType::ExceedThirtyAttempts,
                 json!({
                             "ip": self.ip,
@@ -4047,7 +3949,7 @@ impl Connection {
             false
         } else if time == failure.0 && failure.1 > 6 {
             self.send_login_error("Please try 1 minute later").await;
-            self.post_alarm_audit(
+            Self::post_alarm_audit(
                 AlarmAuditType::SixAttemptsWithinOneMinute,
                 json!({
                             "ip": self.ip,
@@ -5588,7 +5490,6 @@ fn try_activate_screen() {
     });
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum AlarmAuditType {
     IpWhitelist = 0,
     ExceedThirtyAttempts = 1,

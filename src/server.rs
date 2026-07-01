@@ -81,12 +81,6 @@ pub mod printer_service;
 pub type Childs = Arc<Mutex<Vec<std::process::Child>>>;
 type ConnMap = HashMap<i32, ConnInner>;
 
-#[derive(Clone, Default)]
-pub struct ConnectionMeta {
-    pub control_permissions: Option<ControlPermissions>,
-    pub controlled_context: Option<ControlledContext>,
-}
-
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 const CONFIG_SYNC_INTERVAL_SECS: f32 = 0.3;
 #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -169,7 +163,7 @@ async fn accept_connection_(
     server: ServerPtr,
     socket: Stream,
     secure: bool,
-    meta: ConnectionMeta,
+    control_permissions: Option<ControlPermissions>,
 ) -> ResultType<()> {
     let local_addr = socket.local_addr();
     drop(socket);
@@ -186,7 +180,7 @@ async fn accept_connection_(
             Stream::from(stream, stream_addr),
             addr,
             secure,
-            meta,
+            control_permissions,
         )
         .await?;
     }
@@ -198,7 +192,7 @@ pub async fn create_tcp_connection(
     stream: Stream,
     addr: SocketAddr,
     secure: bool,
-    meta: ConnectionMeta,
+    control_permissions: Option<ControlPermissions>,
 ) -> ResultType<()> {
     let mut stream = stream;
     let id = server.write().unwrap().get_new_id();
@@ -266,7 +260,14 @@ pub async fn create_tcp_connection(
         }
         log::info!("wake up macos");
     }
-    Connection::start(addr, stream, id, Arc::downgrade(&server), meta).await;
+    Connection::start(
+        addr,
+        stream,
+        id,
+        Arc::downgrade(&server),
+        control_permissions,
+    )
+    .await;
     Ok(())
 }
 
@@ -275,9 +276,9 @@ pub async fn accept_connection(
     socket: Stream,
     peer_addr: SocketAddr,
     secure: bool,
-    meta: ConnectionMeta,
+    control_permissions: Option<ControlPermissions>,
 ) {
-    if let Err(err) = accept_connection_(server, socket, secure, meta).await {
+    if let Err(err) = accept_connection_(server, socket, secure, control_permissions).await {
         log::warn!("Failed to accept connection from {}: {}", peer_addr, err);
     }
 }
@@ -289,7 +290,7 @@ pub async fn create_relay_connection(
     peer_addr: SocketAddr,
     secure: bool,
     ipv4: bool,
-    meta: ConnectionMeta,
+    control_permissions: Option<ControlPermissions>,
 ) {
     if let Err(err) = create_relay_connection_(
         server,
@@ -298,7 +299,7 @@ pub async fn create_relay_connection(
         peer_addr,
         secure,
         ipv4,
-        meta,
+        control_permissions,
     )
     .await
     {
@@ -318,7 +319,7 @@ async fn create_relay_connection_(
     peer_addr: SocketAddr,
     secure: bool,
     ipv4: bool,
-    meta: ConnectionMeta,
+    control_permissions: Option<ControlPermissions>,
 ) -> ResultType<()> {
     let mut stream = socket_client::connect_tcp(
         socket_client::ipv4_to_ipv6(crate::check_port(relay_server, RELAY_PORT), ipv4),
@@ -333,7 +334,7 @@ async fn create_relay_connection_(
         ..Default::default()
     });
     stream.send(&msg_out).await?;
-    create_tcp_connection(server, stream, peer_addr, secure, meta).await?;
+    create_tcp_connection(server, stream, peer_addr, secure, control_permissions).await?;
     Ok(())
 }
 
