@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v12.py
+apply_foxxdesk_rebrand_all_files_no_zip_v13.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v12-all-files-patch-only-no-zip-2026-07-01"
+SCRIPT_VERSION = "v13-build-safe-patch-only-no-zip-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -378,6 +378,14 @@ PROTECT_PATTERNS: Sequence[str] = (
     r"RustDeskTempTopMostWindow",
     r"RustDeskInterval",
     r"DeleteRustDeskTestCert",
+    # Build/upstream internos que NÃO devem ser renomeados; alguns workflows
+    # dependem desses nomes exatos no action rustdesk-org/run-on-arch-action.
+    r"rustdesk/engine",
+    r"ubuntu18\.04-rustdesk",
+    r"Dockerfile\.[A-Za-z0-9._-]*-rustdesk",
+    # Crates/submódulos internos mantêm seus nomes upstream.
+    r"\bhbb_common\b",
+    r"libs/hbb_common",
 )
 
 
@@ -651,6 +659,48 @@ def patch_package_scripts(rel: str, text: str, args: argparse.Namespace) -> str:
     return text
 
 
+def patch_workflow_build_internals(rel: str, text: str) -> str:
+    """Protege nomes internos usados por actions/upstream e corrige danos de versões agressivas.
+
+    Importante: distro ubuntu18.04-rustdesk é o nome real esperado pelo
+    rustdesk-org/run-on-arch-action. Se virar foxxdesk, o workflow procura
+    Dockerfile.armv7.ubuntu18.04-foxxdesk e quebra.
+    """
+    if not rel.startswith(".github/workflows/"):
+        return text
+    text = text.replace("ubuntu18.04-foxxdesk", "ubuntu18.04-rustdesk")
+    text = text.replace("foxxdesk/engine", "rustdesk/engine")
+    text = text.replace("Dockerfile.armv7.ubuntu18.04-foxxdesk", "Dockerfile.armv7.ubuntu18.04-rustdesk")
+    return text
+
+
+def patch_codegen_submodule_guard(rel: str, text: str) -> str:
+    """Garante que jobs de flutter_rust_bridge tenham libs/hbb_common antes do codegen.
+
+    O erro `failed to read libs/hbb_common/Cargo.toml` acontece quando o
+    submódulo não foi inicializado no runner. Esta etapa é idempotente e
+    não muda o código Rust; só reforça o checkout do submódulo antes do codegen.
+    """
+    if rel not in {".github/workflows/bridge.yml", ".github/workflows/playground.yml"}:
+        return text
+    if "flutter_rust_bridge_codegen" not in text:
+        return text
+    if "Ensure Rust submodules are present" in text:
+        return text
+    guard = (
+        "          git submodule sync --recursive\n"
+        "          git submodule update --init --recursive\n"
+        "          test -f libs/hbb_common/Cargo.toml\n"
+    )
+    pattern = re.compile(
+        r"(?m)(^      - name: Install flutter rust bridge deps\n"
+        r"(?:^        [^\n]*\n)*?"
+        r"^        run: \|\n)"
+        r"(?!          git submodule sync --recursive\n)"
+    )
+    return pattern.sub(r"\1" + guard, text)
+
+
 def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:
     text = normalize_lf(text)
     text = patch_cargo_lock(rel, text)
@@ -659,15 +709,20 @@ def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:
     text = patch_config_rs(rel, text, args)
     text = patch_server_defaults(rel, text, args)
     text = patch_package_scripts(rel, text, args)
-    if args.profile == "full":
+    text = patch_workflow_build_internals(rel, text)
+    text = patch_codegen_submodule_guard(rel, text)
+    if args.profile == "full" and not rel.startswith(".github/workflows/"):
         text = safe_brand_replacements(text)
-    # Reforços pontuais após patches específicos.
-    text = text.replace("/usr/share/rustdesk/files/", "/usr/share/foxxdesk/files/")
-    text = text.replace("/usr/share/rustdesk/", "/usr/share/foxxdesk/")
-    text = text.replace("/etc/systemd/system/rustdesk.service", "/etc/systemd/system/foxxdesk.service")
-    text = text.replace("rustdesk.service", "foxxdesk.service")
-    text = text.replace("rustdesk.desktop", "foxxdesk.desktop")
-    text = text.replace("rustdesk-link.desktop", "foxxdesk-link.desktop")
+    # Workflows têm nomes internos de actions/upstream; não aplicar reforços genéricos neles.
+    if not rel.startswith(".github/workflows/"):
+        # Reforços pontuais após patches específicos.
+        text = text.replace("/usr/share/rustdesk/files/", "/usr/share/foxxdesk/files/")
+        text = text.replace("/usr/share/rustdesk/", "/usr/share/foxxdesk/")
+        text = text.replace("/etc/systemd/system/rustdesk.service", "/etc/systemd/system/foxxdesk.service")
+        text = text.replace("rustdesk.service", "foxxdesk.service")
+        text = text.replace("rustdesk.desktop", "foxxdesk.desktop")
+        text = text.replace("rustdesk-link.desktop", "foxxdesk-link.desktop")
+    text = patch_workflow_build_internals(rel, text)
     return text
 
 
@@ -748,6 +803,31 @@ def process_one_file(target: Path, rel: str, args: argparse.Namespace, report: D
         path.write_bytes(encode_text(convert_newlines(new_norm, newline), enc))
 
 
+def validate_build_safety(target: Path, report: Dict[str, Any]) -> None:
+    """Valida pontos que já quebraram no GitHub Actions.
+
+    Não altera arquivos; apenas registra pendência clara antes do usuário
+    tentar compilar, para evitar erro obscuro no flutter_rust_bridge_codegen.
+    """
+    hbb = target / "libs/hbb_common/Cargo.toml"
+    if not hbb.exists():
+        report["pending"].append({
+            "file": "libs/hbb_common/Cargo.toml",
+            "message": "submódulo ausente; rode `git submodule update --init --recursive` ou garanta `submodules: recursive` no checkout do workflow",
+        })
+    wf = target / ".github/workflows/flutter-build.yml"
+    if wf.exists():
+        try:
+            wtxt = normalize_lf(wf.read_text(encoding="utf-8", errors="ignore"))
+            if "ubuntu18.04-foxxdesk" in wtxt:
+                report["pending"].append({
+                    "file": ".github/workflows/flutter-build.yml",
+                    "message": "distro inválida `ubuntu18.04-foxxdesk`; precisa continuar `ubuntu18.04-rustdesk` para o run-on-arch-action",
+                })
+        except OSError:
+            pass
+
+
 def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path) -> str:
     now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = ["# Relatório de rebrand FoxxDesk", ""]
@@ -755,7 +835,7 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v12.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v13.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
@@ -893,6 +973,8 @@ def main() -> int:
                     copy_backup(target, backup_root, src_rel)
                 src.unlink()
                 report["changes"].append({"file": src_rel, "line": 1, "status": "removido", "action": "remover arquivo antigo após renomeação", "message": f"substituído por {dst_rel}"})
+
+    validate_build_safety(target, report)
 
     report_md = build_report(report, args, target)
     report_path = target / "rebrand_report.md"

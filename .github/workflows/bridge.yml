@@ -86,6 +86,9 @@ jobs:
       - name: Install flutter rust bridge deps
         shell: bash
         run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          test -f libs/hbb_common/Cargo.toml
           cargo install cargo-expand --version ${{ env.CARGO_EXPAND_VERSION }} --locked
           cargo install flutter_rust_bridge_codegen --version ${{ env.FLUTTER_RUST_BRIDGE_VERSION }} --features "uuid" --locked
           if [[ "${{ matrix.job.flutter-version }}" == "3.22.3" ]]; then
