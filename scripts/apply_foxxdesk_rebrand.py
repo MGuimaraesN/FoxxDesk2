@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_from_reference_v7.py
+apply_foxxdesk_rebrand_from_reference_v8.py
 
 Estratégia v7 crítica:
 - O ZIP de referência foi usado apenas para gerar este arquivo.
@@ -13,6 +13,9 @@ Estratégia v7 crítica:
 - Para evitar pendências por casamento de microtrechos, esta versão usa
   espelhamento fechado de arquivos textuais autorizados: se o arquivo autorizado
   difere da referência, ele é atualizado para o conteúdo final da referência.
+- v8 adiciona correção cirúrgica do Cargo.lock raiz: altera somente as entradas
+  de pacote rustdesk/rustdesk-portable-packer para foxxdesk/foxxdesk-portable-packer,
+  sem replace global e sem mexer em dependências ou checksums.
 """
 from __future__ import annotations
 
@@ -29,7 +32,7 @@ import zlib
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-SCRIPT_VERSION = "v7-cargo-homepage-2026-06-30"
+SCRIPT_VERSION = "v8-cargo-lock-safe-2026-07-01"
 REFERENCE_VALUE_SERVER = "foxxdesk.mguimaraesn.dev"
 REFERENCE_VALUE_KEY = "6WbpsDtYMwUca74qNvNaBfV4pUIGzyXnX1Q8V8fZ8YA="
 REFERENCE_VALUE_MAINTAINER_EMAIL = "mateus@mguimaraesn.dev"
@@ -21415,6 +21418,95 @@ def encode_text_for_target(text: str, target_encoding: Optional[str]) -> Tuple[b
     except UnicodeEncodeError:
         return text.encode("utf-8"), "utf-8"
 
+
+def patch_root_cargo_lock(target: Path, args: argparse.Namespace, report: Dict[str, Any], backup_root: Optional[Path]) -> None:
+    """Corrige somente os nomes dos pacotes locais no Cargo.lock raiz.
+
+    Motivo: depois do rebrand do Cargo.toml para FoxxDesk, builds com
+    `cargo build --locked` falham se o Cargo.lock ainda tiver os pacotes locais
+    como `rustdesk` e `rustdesk-portable-packer`.
+
+    Segurança:
+    - Não faz replace global.
+    - Não altera dependências, versões, sources nem checksums.
+    - Só troca a linha `name = ...` imediatamente após `[[package]]`.
+    """
+    rel = "Cargo.lock"
+    report["analyzed_files"].append(rel)
+    path = target / rel
+
+    if not path.exists():
+        report["missing_files"].append(rel)
+        report["root_warnings"].append("Cargo.lock não encontrado na raiz; após o rebrand rode `cargo generate-lockfile` antes do build com --locked.")
+        return
+    if not path.is_file():
+        report["pending"].append({"file": rel, "message": "caminho existe, mas não é arquivo"})
+        return
+
+    data = path.read_bytes()
+    text, enc, isbin = decode_file(data, path)
+    if isbin or text is None:
+        report["pending"].append({"file": rel, "message": "Cargo.lock parece binário; não alterado"})
+        return
+
+    cur_norm = normalize_lf(text)
+    patched = cur_norm
+
+    # Troca apenas o nome do pacote local na abertura de um bloco [[package]].
+    patched, n_main = re.subn(
+        r'(?m)^(\[\[package\]\]\nname = ")rustdesk("$)',
+        r'\1foxxdesk\2',
+        patched,
+        count=1,
+    )
+    patched, n_portable = re.subn(
+        r'(?m)^(\[\[package\]\]\nname = ")rustdesk-portable-packer("$)',
+        r'\1foxxdesk-portable-packer\2',
+        patched,
+        count=1,
+    )
+
+    if patched == cur_norm:
+        already_main = re.search(r'(?m)^\[\[package\]\]\nname = "foxxdesk"$', cur_norm) is not None
+        already_portable = re.search(r'(?m)^\[\[package\]\]\nname = "foxxdesk-portable-packer"$', cur_norm) is not None
+        if already_main and already_portable:
+            report["already_applied_files"].append(rel)
+        else:
+            report["pending"].append({
+                "file": rel,
+                "message": "não encontrei as entradas esperadas rustdesk/rustdesk-portable-packer nem as entradas FoxxDesk já aplicadas; revisar manualmente",
+            })
+        return
+
+    first_old = cur_norm.find('[[package]]\nname = "rustdesk"')
+    second_old = cur_norm.find('[[package]]\nname = "rustdesk-portable-packer"')
+    candidates = [pos for pos in (first_old, second_old) if pos >= 0]
+    first_pos = min(candidates) if candidates else 0
+    line = cur_norm[:first_pos].count("\n") + 1
+
+    changed_pairs = []
+    if n_main:
+        changed_pairs.append('rustdesk → foxxdesk')
+    if n_portable:
+        changed_pairs.append('rustdesk-portable-packer → foxxdesk-portable-packer')
+
+    report["changed_files"].append(rel)
+    report["changes"].append({
+        "file": rel,
+        "line": line,
+        "status": "alterado" if args.apply else "alteraria",
+        "action": "corrigir nomes dos pacotes locais no Cargo.lock raiz",
+        "message": "; ".join(changed_pairs),
+    })
+
+    if args.apply:
+        if backup_root is not None:
+            copy_backup(target, backup_root, rel)
+        newline = dominant_newline(text)
+        out_text = convert_newlines(patched, newline)
+        out_bytes, _used_enc = encode_text_for_target(out_text, enc)
+        path.write_bytes(out_bytes)
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Aplica rebrand FoxxDesk por espelhamento fechado dos arquivos textuais autorizados, incluindo build/empacotamento v6 e metadados Cargo/Homepage v7.")
     p.add_argument("--target", default="./", help="Pasta raiz do projeto alvo. Padrão: ./")
@@ -21432,7 +21524,7 @@ def parse_args() -> argparse.Namespace:
 def build_report(report: Dict[str, Any], args: argparse.Namespace, payload: Dict[str, Any]) -> str:
     now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = ["# Relatório de rebrand FoxxDesk", ""]
-    lines += [f"- Data/hora: `{now}`", f"- Modo: `{'apply' if args.apply else 'dry-run'}`", f"- Projeto alvo: `{args.target}`", "- Script: `apply_foxxdesk_rebrand_from_reference_v7.py`", f"- Versão do script: `{SCRIPT_VERSION}`", "- ZIP de referência: usado apenas na geração deste script; não é lido em execução.", ""]
+    lines += [f"- Data/hora: `{now}`", f"- Modo: `{'apply' if args.apply else 'dry-run'}`", f"- Projeto alvo: `{args.target}`", "- Script: `apply_foxxdesk_rebrand_from_reference_v8.py`", f"- Versão do script: `{SCRIPT_VERSION}`", "- ZIP de referência: usado apenas na geração deste script; não é lido em execução.", ""]
     lines += ["## Valores dinâmicos usados", "", f"- server: `{redact_value(args.server)}`", f"- relay: `{redact_value(args.relay)}`", f"- key: `{redact_value(args.key, 'key')}`", f"- maintainer-email: `{redact_value(args.maintainer_email)}`", f"- homepage: `{redact_value(normalize_homepage(args.homepage or args.server))}`", ""]
     lines += ["## Resumo", ""]
     lines += [f"- Total de arquivos autorizados: `{len(payload['allowed'])}`", f"- Arquivos textuais embutidos: `{len(payload['files'])}`", f"- Arquivos encontrados/analisados: `{len(set(report['analyzed_files']) - set(report['missing_files']))}`", f"- Arquivos esperados não encontrados: `{len(set(report['missing_files']))}`", f"- Arquivos criados/previstos: `{len(set(report['created_files']))}`", f"- Arquivos alterados: `{len(set(report['changed_files']))}`", f"- Arquivos já idênticos/aplicados: `{len(set(report['already_applied_files']))}`", f"- Arquivos ignorados: `{len(set(report['ignored_files']))}`", f"- Pendências: `{len(report['pending'])}`", f"- Binários/especiais para revisão manual: `{len(payload.get('binary_or_special_review_files', []))}`"]
@@ -21552,6 +21644,7 @@ def main() -> int:
             out_text = convert_newlines(ref_norm, newline)
             out_bytes, _used_enc = encode_text_for_target(out_text, target_enc)
             path.write_bytes(out_bytes)
+    patch_root_cargo_lock(target, args, report, backup_root)
     report_md = build_report(report, args, payload)
     report_path = target / "rebrand_report.md"
     report_path.write_text(report_md, encoding="utf-8", newline="\n")
