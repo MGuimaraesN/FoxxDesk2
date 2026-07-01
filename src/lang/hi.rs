@@ -540,7 +540,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("auto_disconnect_option_tip", "निष्क्रियता पर स्वचालित रूप से डिस्कनेक्ट करें"),
         ("Connection failed due to inactivity", "निष्क्रियता के कारण कनेक्शन विफल रहा"),
         ("Check for software update on startup", "स्टार्टअप पर सॉफ़्टवेयर अपडेट की जांच करें"),
-        ("upgrade_rustdesk_server_pro_to_{}_tip", "FoxxDesk सर्वर प्रो को संस्करण {} में अपग्रेड करें"),
+        ("upgrade_rustdesk_server_pro_to_{}_tip", "RustDesk सर्वर प्रो को संस्करण {} में अपग्रेड करें"),
         ("pull_group_failed_tip", "समूह खींचने (Pull) में विफल"),
         ("Filter by intersection", "इंटरसेक्शन द्वारा फ़िल्टर करें"),
         ("Remove wallpaper during incoming sessions", "आने वाले सत्रों के दौरान वॉलपेपर हटा दें"),

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #
-# Script to build F-Droid release of FoxxDesk
+# Script to build F-Droid release of RustDesk
 #
-# Copyright (C) 2024, The FoxxDesk Authors
+# Copyright (C) 2024, The RustDesk Authors
 #               2024, Vasyl Gello <vasek.gello@gmail.com>
 #
 
@@ -77,7 +77,7 @@ arm64-v8a)
 	FLUTTER_TARGET=android-arm64
 	NDK_TARGET=aarch64-linux-android
 	RUST_TARGET=aarch64-linux-android
-	FOXXDESK_FEATURES='flutter,hwcodec'
+	RUSTDESK_FEATURES='flutter,hwcodec'
 	;;
 armeabi-v7a)
 	FLUTTER_TARGET=android-arm
@@ -89,7 +89,7 @@ x86_64)
 	FLUTTER_TARGET=android-x64
 	NDK_TARGET=x86_64-linux-android
 	RUST_TARGET=x86_64-linux-android
-	FOXXDESK_FEATURES='flutter'
+	RUSTDESK_FEATURES='flutter'
 	;;
 x86)
 	FLUTTER_TARGET=android-x86
@@ -135,7 +135,7 @@ prebuild)
 		.env.CARGO_NDK_VERSION \
 		.github/workflows/flutter-build.yml)"
 
-	# Flutter used to compile main Foxxdesk library
+	# Flutter used to compile main Rustdesk library
 
 	FLUTTER_VERSION="$(yq -r \
 		.env.ANDROID_FLUTTER_VERSION \
@@ -302,12 +302,12 @@ prebuild)
 		fi
 	fi
 
-	# Patch the FoxxDesk sources
+	# Patch the RustDesk sources
 
 	git apply res/fdroid/patches/*.patch
 
 	# If Flutter version used to generate bridge files differs from Flutter
-	# version used to compile Foxxdesk library, generate bridge using the
+	# version used to compile Rustdesk library, generate bridge using the
 	# `FLUTTER_BRIDGE_VERSION` an restore the pubspec later
 
 	if [ "${FLUTTER_VERSION}" != "${FLUTTER_BRIDGE_VERSION}" ]; then
@@ -367,7 +367,7 @@ prebuild)
 		unset BRIDGE_LLVM_PATH
 	fi
 
-	# Install Flutter version for FoxxDesk library build
+	# Install Flutter version for RustDesk library build
 
 	prepare_flutter "${FLUTTER_VERSION}" "${HOME}/flutter"
 
@@ -453,7 +453,7 @@ build)
 
 	bash flutter/build_android_deps.sh "${ANDROID_ABI}"
 
-	# Build foxxdesk lib
+	# Build rustdesk lib
 
 	cargo ndk \
 		--platform 21 \
@@ -462,7 +462,7 @@ build)
 		build \
 		--locked \
 		--release \
-		--features "${FOXXDESK_FEATURES}"
+		--features "${RUSTDESK_FEATURES}"
 
 	mkdir -p "flutter/android/app/src/main/jniLibs/${ANDROID_ABI}"
 

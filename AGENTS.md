@@ -1,4 +1,4 @@
-# FoxxDesk Guide
+# RustDesk Guide
 
 ## Project Layout
 
@@ -82,5 +82,5 @@ Then translate that source into the file's target language (infer the language f
 
 * Only fill empty values. Never change keys, and never touch existing non-empty translations.
 * Preserve placeholders (`{}`) and escape sequences (`\n`, `\"`) exactly as in the source.
-* Do not translate brand or technical tokens: `FoxxDesk`, `Socks5`, `TLS`, `UAC`, `Wayland`, `X11`, `TCP`, `UDP`, `2FA`, `RDP`, `D3D`, etc.
+* Do not translate brand or technical tokens: `RustDesk`, `Socks5`, `TLS`, `UAC`, `Wayland`, `X11`, `TCP`, `UDP`, `2FA`, `RDP`, `D3D`, etc.
 * Copy URL values (e.g. `doc_*` keys) verbatim from `en.rs`.

@@ -37,13 +37,13 @@ class RelativeMouseState {
 
 class MainFlutterWindow: NSWindow {
     override func awakeFromNib() {
-        foxxdesk_core_main();
+        rustdesk_core_main();
         let flutterViewController = FlutterViewController.init()
         let windowFrame = self.frame
         self.contentViewController = flutterViewController
         self.setFrame(windowFrame, display: true)
         // register self method handler
-        let registrar = flutterViewController.registrar(forPlugin: "FoxxDeskPlugin")
+        let registrar = flutterViewController.registrar(forPlugin: "RustDeskPlugin")
         setMethodHandler(registrar: registrar)
 
         RegisterGeneratedPlugins(registry: flutterViewController)
@@ -52,7 +52,7 @@ class MainFlutterWindow: NSWindow {
             // Register the plugin which you want access from other isolate.
             // DesktopLifecyclePlugin.register(with: controller.registrar(forPlugin: "DesktopLifecyclePlugin"))
             // Note: copy below from above RegisterGeneratedPlugins
-            self.setMethodHandler(registrar: controller.registrar(forPlugin: "FoxxDeskPlugin"))
+            self.setMethodHandler(registrar: controller.registrar(forPlugin: "RustDeskPlugin"))
             DesktopDropPlugin.register(with: controller.registrar(forPlugin: "DesktopDropPlugin"))
             DeviceInfoPlusMacosPlugin.register(with: controller.registrar(forPlugin: "DeviceInfoPlusMacosPlugin"))
             FlutterCustomCursorPlugin.register(with: controller.registrar(forPlugin: "FlutterCustomCursorPlugin"))

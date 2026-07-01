@@ -1,10 +1,10 @@
-# FoxxDesk'a Katkı Sağlamak
+# RustDesk'a Katkı Sağlamak
 
-FoxxDesk, herkesten katkıyı memnuniyetle karşılar. Eğer bize yardımcı olmayı düşünüyorsanız, işte rehberlik eden kurallar:
+RustDesk, herkesten katkıyı memnuniyetle karşılar. Eğer bize yardımcı olmayı düşünüyorsanız, işte rehberlik eden kurallar:
 
 ## Katkılar
 
-FoxxDesk veya bağımlılıklarına yapılan katkılar, GitHub pull istekleri şeklinde yapılmalıdır. Her bir pull isteği, çekirdek katkıcı tarafından gözden geçirilecek (yamaları kabul etme izni olan biri) ve ana ağaca kabul edilecek veya gerekli değişiklikler için geri bildirim verilecektir. Tüm katkılar bu formata uymalıdır, çekirdek katkıcılardan gelenler bile.
+RustDesk veya bağımlılıklarına yapılan katkılar, GitHub pull istekleri şeklinde yapılmalıdır. Her bir pull isteği, çekirdek katkıcı tarafından gözden geçirilecek (yamaları kabul etme izni olan biri) ve ana ağaca kabul edilecek veya gerekli değişiklikler için geri bildirim verilecektir. Tüm katkılar bu formata uymalıdır, çekirdek katkıcılardan gelenler bile.
 
 Eğer bir konu üzerinde çalışmak isterseniz, önce üzerinde çalışmak istediğinizi belirten bir yorum yaparak konuyu talep ediniz. Bu, katkı sağlayanların aynı konuda çift çalışmasını engellemek içindir.
 
@@ -28,4 +28,4 @@ https://github.com/rustdesk/rustdesk/blob/master/docs/CODE_OF_CONDUCT-TR.md
 
 ## İletişim
 
-FoxxDesk katkı sağlayıcıları, [Discord](https://discord.gg/nDceKgxnkV) kanalını sık sık ziyaret ederler.
+RustDesk katkı sağlayıcıları, [Discord](https://discord.gg/nDceKgxnkV) kanalını sık sık ziyaret ederler.
