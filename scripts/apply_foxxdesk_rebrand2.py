@@ -18,7 +18,8 @@ Regras de segurança aplicadas:
 - cria backup antes de salvar;
 - preserva encoding e quebras de linha sempre que possível;
 - não edita arquivos binários;
-- não renomeia, não move e não apaga arquivos.
+- não renomeia, não move e não apaga arquivos;
+- por padrão usa --target ./ para execução a partir da raiz do projeto.
 """
 from __future__ import annotations
 
@@ -28,6 +29,7 @@ import codecs
 import datetime as _dt
 import hashlib
 import json
+import re
 import shutil
 import sys
 import zlib
@@ -51,6 +53,27 @@ TEXT_FALLBACK_EXTS = {
     ".gradle", ".properties", ".gitignore", ".lock", ".svg", ".rc", ".xcconfig",
     ".xib", ".html", ".css", ".js", ""
 }
+
+
+# Arquivos que apareceram no manifesto porque existiam no ZIP de referência,
+# mas normalmente não existem no projeto alvo limpo. O script não cria esses
+# arquivos automaticamente para manter a regra de não criar artefatos extras.
+REFERENCE_ONLY_TEXT_FILES = {
+    "BRAND_CHANGELOG.md",
+    "FOXXDESK_MAX_SAFE_BRAND_REPORT.md",
+    "FOXXDESK_SERVER_DEFAULTS.md",
+    "NOTICE.md",
+    "flatpak/com.foxxdesk.client.metainfo.xml",
+    "res/foxxdesk-link.desktop",
+    "scripts/apply_foxxdesk_brand.py",
+    "scripts/apply_foxxdesk_brand_DEFINITIVE.py",
+    "scripts/apply_foxxdesk_brand_SAFE.py",
+    "scripts/apply_foxxdesk_brand_with_fixes.py",
+    "scripts/fix_foxxdesk_windows_flutter_build.py",
+    "scripts/fix_generated_bridge_compat.py",
+}
+
+BRAND_TOKENS_RE = r"(RustDesk|Rustdesk|RUSTDESK|rustdesk|Rust Desk|RUST DESK|rust_desk|rust-desk|FoxxDesk|Foxxdesk|FOXXDESK|foxxdesk|Foxx Desk|FOXX DESK|foxx_desk|foxx-desk)"
 
 _MANIFEST_B64 = """eNrsfWmTHNWV6F+5lu2HpOmqrlxqBTNuqVugQdvrlvAiOaSbmTersisrs5xLt7qNI7SAjQ2MPWNsYxvMvhoBMosFFhDxSoqYTw7x
 TYr3xW+EZLBEzF9459ybmZVZazfq1mKLGaurKm/e5Zxzz37P/cGGNg30BvM31Pb/YINp2WxDbUO+bgWNUJvctm/X9PZd9+SXWvaG
@@ -1792,12 +1815,92 @@ def md_escape(s: str) -> str:
     return s.replace("|", "\\|").replace("\n", "\\n")
 
 
+
+def brand_signature(line: str) -> str:
+    """Assinatura segura para localizar linhas equivalentes com variação só de marca."""
+    return re.sub(BRAND_TOKENS_RE, "{BRAND}", line)
+
+
+def has_rust_brand_token(text: str) -> bool:
+    return bool(re.search(r"(RustDesk|Rustdesk|RUSTDESK|rustdesk|Rust Desk|RUST DESK|rust_desk|rust-desk)", text))
+
+
+def try_line_level_brand_fallback(text: str, old: str, final_new: str, line_hint: Optional[int]) -> Tuple[Optional[int], Optional[int], str]:
+    """Fallback conservador para linhas únicas quando o trecho exato mudou só em marca/indentação.
+
+    Só troca a linha inteira quando:
+    - old e new são linhas únicas;
+    - a linha candidata contém token RustDesk/rustdesk;
+    - a assinatura sem marca bate com a assinatura do old;
+    - há ocorrência única na janela próxima ao line_hint ou no arquivo.
+    """
+    old_lf = normalize_lf(old)
+    new_lf = normalize_lf(final_new)
+    if not old_lf or "\n" in old_lf.rstrip("\n") or "\n" in new_lf.rstrip("\n"):
+        return None, None, "fallback de linha não aplicável"
+    if not has_rust_brand_token(old_lf):
+        return None, None, "fallback de linha sem token RustDesk"
+    old_line = old_lf.rstrip("\n")
+    sig = brand_signature(old_line.strip())
+    if "{BRAND}" not in sig:
+        return None, None, "fallback de linha sem assinatura de marca"
+
+    lines = text.splitlines(keepends=True)
+    ranges = []
+    if isinstance(line_hint, int) and line_hint > 0:
+        start = max(0, line_hint - 12)
+        end = min(len(lines), line_hint + 11)
+        ranges.append(range(start, end))
+    ranges.append(range(0, len(lines)))
+
+    for rg in ranges:
+        matches = []
+        offset = 0
+        line_offsets = []
+        for line in lines:
+            line_offsets.append(offset)
+            offset += len(line)
+        for i in rg:
+            if i < 0 or i >= len(lines):
+                continue
+            line_no_nl = lines[i].rstrip("\n")
+            if not has_rust_brand_token(line_no_nl):
+                continue
+            if brand_signature(line_no_nl.strip()) == sig:
+                matches.append(i)
+        if len(matches) == 1:
+            i = matches[0]
+            pos = line_offsets[i]
+            return pos, pos + len(lines[i]), "fallback-linha-marca"
+        if len(matches) > 1:
+            return None, None, f"fallback de linha ambíguo: {len(matches)} ocorrências"
+    return None, None, "fallback de linha não encontrou candidato único"
+
+
+def try_top_insert_fallback(text: str, old: str, final_new: str, change: Dict[str, Any]) -> Tuple[Optional[int], Optional[int], str]:
+    """Permite inserção segura no topo quando o patch é explicitamente old_start=1 e tem marcador único."""
+    if old != "":
+        return None, None, "não é inserção"
+    if change.get("old_start") != 1:
+        return None, None, "inserção sem old_start=1"
+    marker = "<!-- FOXXDESK_BRAND_NOTICE -->"
+    if marker not in final_new:
+        return None, None, "inserção sem marcador FOXXDESK_BRAND_NOTICE"
+    if marker in text:
+        return None, None, "marcador de inserção já existe"
+    return 0, 0, "inserção-topo-com-marcador"
+
+
+
 def apply_file_patches(target: Path, patch: Dict[str, Any], args: argparse.Namespace, backup_root: Optional[Path], report: Dict[str, Any]) -> None:
     rel = patch["file"]
     path = target / rel
     report["analyzed_files"].append(rel)
     if not path.exists():
-        report["missing_files"].append(rel)
+        if rel in REFERENCE_ONLY_TEXT_FILES:
+            report["reference_only_missing"].append(rel)
+        else:
+            report["missing_files"].append(rel)
         return
     if not path.is_file():
         report["pending"].append({"file": rel, "message": "caminho existe, mas não é arquivo"})
@@ -1825,6 +1928,14 @@ def apply_file_patches(target: Path, patch: Dict[str, Any], args: argparse.Names
         before = normalize_lf(change.get("before", ""))
         after = normalize_lf(change.get("after", ""))
         cid = change.get("id", f"{rel}:{change.get('old_start')}")
+
+        if old == final_new:
+            report["changes"].append({
+                "file": rel, "id": cid, "line": change.get("old_start"),
+                "status": "sem alteração", "old": preview(old, args), "new": preview(final_new, args),
+                "message": "old e new são iguais; patch tratado como no-op"
+            })
+            continue
 
         if final_new and final_new in work:
             report["changes"].append({
@@ -1855,22 +1966,32 @@ def apply_file_patches(target: Path, patch: Dict[str, Any], args: argparse.Names
 
         start, end, locate_msg = locate_with_context(work, old_for_match, before_for_match, after_for_match)
         if start is None or end is None:
-            if reference_new and reference_new in work:
-                report["changes"].append({
-                    "file": rel, "id": cid, "line": line_for_pos(work, work.find(reference_new)),
-                    "status": "já aplicado", "old": preview(old, args), "new": preview(reference_new, args),
-                    "message": "trecho final da referência já existe"
-                })
-                continue
-            file_already = False
-            file_pending = True
-            report["changes"].append({
-                "file": rel, "id": cid, "line": change.get("old_start"),
-                "status": "pendente", "old": preview(old, args), "new": preview(final_new, args),
-                "message": locate_msg
-            })
-            report["pending"].append({"file": rel, "change_id": cid, "message": locate_msg})
-            continue
+            # Fallback 1: inserção no topo com marcador único, usado para o aviso FOXXDESK_BRAND_NOTICE.
+            top_start, top_end, top_msg = try_top_insert_fallback(work, old_for_match, final_new, change)
+            if top_start is not None and top_end is not None:
+                start, end, locate_msg = top_start, top_end, top_msg
+            else:
+                # Fallback 2: linha única com assinatura de marca, limitado a linhas equivalentes.
+                fb_start, fb_end, fb_msg = try_line_level_brand_fallback(work, old_for_match, final_new, change.get("old_start"))
+                if fb_start is not None and fb_end is not None:
+                    start, end, locate_msg = fb_start, fb_end, fb_msg
+                else:
+                    if reference_new and reference_new in work:
+                        report["changes"].append({
+                            "file": rel, "id": cid, "line": line_for_pos(work, work.find(reference_new)),
+                            "status": "já aplicado", "old": preview(old, args), "new": preview(reference_new, args),
+                            "message": "trecho final da referência já existe"
+                        })
+                        continue
+                    file_already = False
+                    file_pending = True
+                    report["changes"].append({
+                        "file": rel, "id": cid, "line": change.get("old_start"),
+                        "status": "pendente", "old": preview(old, args), "new": preview(final_new, args),
+                        "message": locate_msg + "; " + fb_msg
+                    })
+                    report["pending"].append({"file": rel, "change_id": cid, "message": locate_msg + "; " + fb_msg})
+                    continue
 
         line = line_for_pos(work, start)
         work = work[:start] + final_new + work[end:]
@@ -1924,6 +2045,7 @@ def build_report_md(report: Dict[str, Any], args: argparse.Namespace, manifest: 
     lines.append(f"- Total de alterações/blocos autorizados: `{sum(len(p.get('changes', [])) for p in manifest['patches'])}`")
     lines.append(f"- Arquivos encontrados/analisados: `{len(set(report['analyzed_files']) - set(report['missing_files']))}`")
     lines.append(f"- Arquivos esperados não encontrados: `{len(set(report['missing_files']))}`")
+    lines.append(f"- Arquivos da referência não criados automaticamente: `{len(set(report.get('reference_only_missing', [])))}`")
     lines.append(f"- Arquivos alterados: `{len(set(report['changed_files']))}`")
     lines.append(f"- Arquivos já aplicados: `{len(set(report['already_applied_files']))}`")
     lines.append(f"- Arquivos ignorados: `{len(set(report['ignored_files']))}`")
@@ -1949,6 +2071,8 @@ def build_report_md(report: Dict[str, Any], args: argparse.Namespace, manifest: 
     section("Arquivos já aplicados", report["already_applied_files"])
     section("Arquivos ignorados", report["ignored_files"])
     section("Arquivos esperados que não foram encontrados", report["missing_files"])
+    section("Arquivos da referência não criados automaticamente", report.get("reference_only_missing", []))
+    section("Avisos sobre raiz do projeto", report.get("root_warnings", []))
     section("Arquivos binários ou especiais para revisão manual", manifest.get("binary_or_special_review_files", []))
     section("Arquivos sem snapshot antigo seguro; revisar manualmente", manifest.get("manual_review_files", []))
     section("Binários detectados em runtime e não alterados", report["binary_runtime"])
@@ -1993,7 +2117,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Aplica patches fechados de rebrand RustDesk -> FoxxDesk derivados de um ZIP de referência já analisado."
     )
-    p.add_argument("--target", required=True, help="Pasta do projeto alvo.")
+    p.add_argument("--target", default="./", help="Pasta raiz do projeto alvo. Padrão: ./")
     mode = p.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="Mostra o que seria alterado sem salvar.")
     mode.add_argument("--apply", action="store_true", help="Aplica as alterações.")
@@ -2017,6 +2141,8 @@ def main() -> int:
         die(f"--target não existe: {target}")
     if not target.is_dir():
         die(f"--target não é uma pasta: {target}")
+    # O uso recomendado é executar o script a partir da raiz do projeto com --target ./.
+    # Não aborta se os marcadores não existirem, mas registra no relatório.
     if args.apply and not args.yes:
         resp = input(f"Aplicar alterações em '{target}'? Digite 'SIM' para confirmar: ").strip()
         if resp != "SIM":
@@ -2039,9 +2165,16 @@ def main() -> int:
         "pending": [],
         "changes": [],
         "binary_runtime": [],
+        "reference_only_missing": [],
+        "root_warnings": [],
         "errors": [],
         "backup_dir": str(backup_root) if backup_root else "",
     }
+
+    if not (target / "Cargo.toml").exists():
+        report["root_warnings"].append("Cargo.toml não encontrado na raiz alvo; confirme que está executando com --target ./ a partir da raiz do projeto.")
+    if not (target / "src").is_dir():
+        report["root_warnings"].append("Pasta src/ não encontrada na raiz alvo; confirme que está executando com --target ./ a partir da raiz do projeto.")
 
     for patch in manifest["patches"]:
         try:
