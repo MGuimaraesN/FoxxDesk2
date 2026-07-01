@@ -1,12 +1,12 @@
-# Contribuzione a RustDesk
+# Contribuzione a FoxxDesk
 
-RustDesk accoglie con favore il contributo di tutti.
+FoxxDesk accoglie con favore il contributo di tutti.
 Ecco le linee guida se stai pensando di aiutarci.
 
 ## Contribuzione
 
-I contributi a RustDesk o alle sue dipendenze dovrebbero essere forniti sotto forma di richieste pull GitHub. 
-Ogni richiesta pull verrà esaminata da un collaboratore principale (qualcuno con il permesso di applicare) ed è abilitato all'uso dell'albero principale o dare un feedback per le modifiche che sarebbero necessarie. 
+I contributi a FoxxDesk o alle sue dipendenze dovrebbero essere forniti sotto forma di richieste pull GitHub. 
+Ogni richiesta pull verr esaminata da un collaboratore principale (qualcuno con il permesso di applicare) ed  abilitato all'uso dell'albero principale o dare un feedback per le modifiche che sarebbero necessarie. 
 Tutti i contributi dovrebbero seguire questo formato, anche quelli dei contributori principali.
 
 Se desideri lavorare su un problema, rivendicalo prima commentando
@@ -34,4 +34,4 @@ https://github.com/rustdesk/rustdesk/blob/master/docs/CODE_OF_CONDUCT-IT.md
 
 ## Comunicazioni
 
-I contributori di RustDesk frequentano [Discord](https://discord.gg/nDceKgxnkV).
+I contributori di FoxxDesk frequentano [Discord](https://discord.gg/nDceKgxnkV).

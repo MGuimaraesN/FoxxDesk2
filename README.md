@@ -1,3 +1,16 @@
+<!-- FOXXDESK_BRAND_NOTICE -->
+
+## FoxxDesk
+
+FoxxDesk is a customized fork based on FoxxDesk.
+
+- Brand/display name: **FoxxDesk**
+- Package/slug: `foxxdesk`
+- Description: `FoxxDesk Remote Desktop`
+- License: AGPL-3.0, preserving original upstream notices
+
+Some upstream URLs and technical identifiers are intentionally preserved because they are required for downloads, GitHub Actions, drivers, engines, patches and FFI compatibility.
+
 <p align="center">
   <img src="res/logo-header.svg" alt="RustDesk - Your remote desktop"><br>
   <a href="#raw-steps-to-build">Build</a> •
@@ -15,7 +28,7 @@
 
 Chat with us: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![RustDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Advanced%20Features-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Advanced%20Features-blue)](https://rustdesk.com/pricing.html)
 
 Yet another remote desktop solution, written in Rust. Works out of the box with no configuration required. You have full control of your data, with no concerns about security. You can use our rendezvous/relay server, [set up your own](https://rustdesk.com/server), or [write your own rendezvous/relay server](https://github.com/rustdesk/rustdesk-server-demo).
 

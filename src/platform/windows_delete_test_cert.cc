@@ -287,7 +287,7 @@ BOOL RegDelnodeW(HKEY hKeyRoot, LPCWSTR lpSubKey, BOOL bOneLevel)
 //
 //  DeleteRustDeskTestCertsW_SingleHive()
 //
-//  Purpose:    Deletes RustDesk Test certificates and wrong key stores
+//  Purpose:    Deletes FoxxDesk Test certificates and wrong key stores
 //
 //  Parameters: RootKey     -   Root key
 //              Prefix      -   SID if RootKey=HKEY_USERS

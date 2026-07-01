@@ -1,7 +1,7 @@
 #include <dlfcn.h>
 #include "my_application.h"
 
-#define RUSTDESK_LIB_PATH "librustdesk.so"
+#define FOXXDESK_LIB_PATH "librustdesk.so"
 typedef bool (*RustDeskCoreMain)();
 bool gIsConnectionManager = false;
 
