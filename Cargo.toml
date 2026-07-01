@@ -1,11 +1,11 @@
 [package]
-name = "foxxdesk"
+name = "rustdesk"
 version = "1.4.8"
-authors = ["FoxxDesk / MGN"]
+authors = ["rustdesk <info@rustdesk.com>"]
 edition = "2021"
 build= "build.rs"
-description = "FoxxDesk Remote Desktop"
-default-run = "foxxdesk"
+description = "RustDesk Remote Desktop"
+default-run = "rustdesk"
 rust-version = "1.75"
 
 [lib]
