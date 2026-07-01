@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v15.py
+apply_foxxdesk_rebrand_all_files_no_zip_v16.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v15-windows-flutter-bridge-safe-no-zip-2026-07-01"
+SCRIPT_VERSION = "v16-portable-packer-execbits-safe-no-zip-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -343,6 +343,14 @@ SAFE_CORE_FILES: List[str] = [
 
 
 GENERATED_HELPER_FILES: set[str] = {
+    "scripts/fix_generated_bridge_compat.py",
+}
+
+EXECUTABLE_FILES: set[str] = {
+    # GitHub Actions/Linux runners precisam desses bits preservados no Git.
+    # O script aplica chmod +x no filesystem; depois `git add` registra modo 100755.
+    "build.py",
+    "flutter/build_android_deps.sh",
     "scripts/fix_generated_bridge_compat.py",
 }
 
@@ -749,6 +757,109 @@ def patch_upstream_dependency_branches(rel: str, text: str) -> str:
     return text
 
 
+
+def patch_portable_packer_robustness(rel: str, text: str) -> str:
+    '''Corrige caminhos frágeis do portable packer no Windows/Git Bash.
+
+    O erro `The executable must locate in source folder` acontece porque
+    `libs/portable/generate.py` usava `startswith()` textual para comparar
+    caminhos. Em GitHub Actions Windows, caminhos podem aparecer como
+    `/d/a/...` em bash e `D:\\a\\...` no Python nativo, então a comparação
+    pode falhar mesmo com o executável dentro da pasta.
+
+    Também evita passar caminho completo no `-e`: quando `-f` já aponta para
+    a pasta, `-e foxxdesk.exe` é mais robusto e o próprio generate.py resolve.
+    '''
+    if rel == "libs/portable/generate.py":
+        def restore_fallback_names(src: str) -> str:
+            return src.replace(
+                '["foxxdesk.exe", "FoxxDesk.exe", "foxxdesk.exe", "FoxxDesk.exe"]',
+                '["foxxdesk.exe", "FoxxDesk.exe", "rustdesk.exe", "RustDesk.exe"]',
+            )
+
+        if "GitHub Actions on Windows may mix /d/a/... and D:" in text:
+            return restore_fallback_names(text)
+        old = '''    exe: str = os.path.abspath(options.executable)
+    if not exe.startswith(os.path.abspath(folder)):
+        print("The executable must locate in source folder")
+        exit(-1)
+    exe = '.' + exe[len(os.path.abspath(folder)):]
+'''
+        new = '''    folder_abs = os.path.abspath(folder)
+    exe_abs = os.path.abspath(options.executable)
+
+    # GitHub Actions on Windows may mix /d/a/... and D:\\a\\... paths.
+    # Use normalized commonpath instead of a raw string startswith check.
+    try:
+        folder_norm = os.path.normcase(os.path.normpath(folder_abs))
+        exe_norm = os.path.normcase(os.path.normpath(exe_abs))
+        common = os.path.commonpath([folder_norm, exe_norm])
+    except ValueError:
+        common = ""
+
+    if common != folder_norm:
+        print("The executable must locate in source folder")
+        print(f"  source folder: {folder_abs}")
+        print(f"  executable:    {exe_abs}")
+        exit(-1)
+
+    if not os.path.isfile(exe_abs):
+        # Fallback para builds parcialmente rebrandados ou artefatos upstream.
+        # Não mascara erro: se nenhum executável existir, falha com lista clara.
+        fallback_names = ["foxxdesk.exe", "FoxxDesk.exe", "rustdesk.exe", "RustDesk.exe"]
+        for name in fallback_names:
+            candidate = os.path.join(folder_abs, name)
+            if os.path.isfile(candidate):
+                print(f"Executable not found at {exe_abs}; using {candidate}")
+                exe_abs = candidate
+                break
+
+    if not os.path.isfile(exe_abs):
+        print(f"Executable not found: {exe_abs}")
+        if os.path.isdir(folder_abs):
+            print("Source folder contents:")
+            for item in sorted(os.listdir(folder_abs)):
+                print(f"  - {item}")
+        else:
+            print(f"Source folder does not exist: {folder_abs}")
+        exit(-1)
+
+    exe = './' + os.path.relpath(exe_abs, folder_abs).replace(os.sep, '/')
+'''
+        if old in text:
+            text = text.replace(old, new, 1)
+        return restore_fallback_names(text)
+
+    if rel == "build.py":
+        # Quando já estamos passando -f <pasta>, passe apenas o nome do exe.
+        # Isso evita comparação frágil de caminho absoluto no generate.py.
+        text = text.replace(
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/foxxdesk.exe')",
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
+        )
+        text = text.replace(
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/{APP_SLUG}.exe')",
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
+        )
+        text = text.replace(
+            "f'python3 ./generate.py -f ../../{res_dir} -o . -e ../../{res_dir}/foxxdesk-{version}-win7-install.exe')",
+            "f'python3 ./generate.py -f ../../{res_dir} -o . -e FoxxDesk.exe')",
+        )
+        return text
+
+    if rel == ".github/workflows/flutter-build.yml":
+        text = text.replace(
+            "python3 ./generate.py -f ../../foxxdesk/ -o . -e ../../foxxdesk/foxxdesk.exe",
+            "python3 ./generate.py -f ../../foxxdesk/ -o . -e foxxdesk.exe",
+        )
+        text = text.replace(
+            "python3 ./generate.py -f ../../Release/ -o . -e ../../Release/foxxdesk.exe",
+            "python3 ./generate.py -f ../../Release/ -o . -e foxxdesk.exe",
+        )
+        return text
+
+    return text
+
 def patch_codegen_submodule_guard(rel: str, text: str) -> str:
     """Garante que jobs de flutter_rust_bridge tenham libs/hbb_common antes do codegen.
 
@@ -939,6 +1050,7 @@ def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:
     text = patch_codegen_submodule_guard(rel, text)
     text = patch_bridge_workflow_compat(rel, text)
     text = patch_windows_flutter_dart_fixes(rel, text)
+    text = patch_portable_packer_robustness(rel, text)
     if args.profile == "full" and not rel.startswith(".github/workflows/"):
         text = safe_brand_replacements(text)
         text = patch_upstream_dependency_branches(rel, text)
@@ -952,6 +1064,7 @@ def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:
         text = text.replace("rustdesk.desktop", "foxxdesk.desktop")
         text = text.replace("rustdesk-link.desktop", "foxxdesk-link.desktop")
     text = patch_workflow_build_internals(rel, text)
+    text = patch_portable_packer_robustness(rel, text)
     return text
 
 
@@ -1034,6 +1147,46 @@ def process_one_file(target: Path, rel: str, args: argparse.Namespace, report: D
         path.write_bytes(encode_text(convert_newlines(new_norm, newline), enc))
 
 
+
+def ensure_executable_permissions(target: Path, args: argparse.Namespace, report: Dict[str, Any], backup_root: Optional[Path]) -> None:
+    '''Marca scripts críticos como executáveis para CI Linux/macOS.
+
+    Importante: o chmod no filesystem precisa ser seguido de `git add` para o
+    Git registrar o modo 100755. Isso cobre o caso de
+    `flutter/build_android_deps.sh` e também `build.py`.
+    '''
+    for rel in sorted(EXECUTABLE_FILES):
+        path = target / rel
+        if not path.exists() or not path.is_file():
+            if rel in {"build.py", "flutter/build_android_deps.sh"}:
+                report["missing_files"].append(rel)
+            continue
+        try:
+            mode = path.stat().st_mode
+        except OSError as exc:
+            report["pending"].append({"file": rel, "message": f"falha ao ler permissões: {exc}"})
+            continue
+        desired = mode | 0o111
+        report["analyzed_files"].append(rel)
+        if mode == desired:
+            report["already_applied_files"].append(rel)
+            continue
+        report["changed_files"].append(rel)
+        report["changes"].append({
+            "file": rel,
+            "line": 1,
+            "status": "chmod +x" if args.apply else "aplicaria chmod +x",
+            "action": "garantir bit executável no Git/CI",
+            "message": "marca como executável; rode git add para registrar modo 100755",
+        })
+        if args.apply:
+            if backup_root is not None:
+                copy_backup(target, backup_root, rel)
+            try:
+                path.chmod(desired)
+            except OSError as exc:
+                report["pending"].append({"file": rel, "message": f"falha ao aplicar chmod +x: {exc}"})
+
 def validate_build_safety(target: Path, report: Dict[str, Any]) -> None:
     """Valida pontos que já quebraram no GitHub Actions.
 
@@ -1066,12 +1219,12 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v15.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v16.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
         f"- Perfil: `{args.profile}`",
-        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge`",
+        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer + chmod executável`",
         "- Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.",
         "",
         "## Valores dinâmicos",
@@ -1196,6 +1349,7 @@ def main() -> int:
         process_one_file(target, rel, args, report, backup_root)
 
     ensure_generated_bridge_compat_helper(target, args, report, backup_root)
+    ensure_executable_permissions(target, args, report, backup_root)
 
     if args.apply and args.remove_old_renamed:
         for src_rel, dst_rel in FILE_RENAMES.items():
