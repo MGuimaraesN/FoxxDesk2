@@ -1,6 +1,6 @@
 # Relatório de rebrand FoxxDesk
 
-- Data/hora: `2026-07-01 08:25:57`
+- Data/hora: `2026-07-01 08:57:27`
 - Modo: `apply`
 - Projeto alvo: `/home/mateus/_Projects/FoxxDesk2`
 - Script: `apply_foxxdesk_rebrand_standalone_v9.py`
@@ -27,7 +27,7 @@
 - Arquivos ignorados: `0`
 - Renomeações/cópias criadas: `0`
 - Pendências: `0`
-- Backup: `/home/mateus/_Projects/FoxxDesk2/.rebrand_backup/20260701_082557`
+- Backup: `/home/mateus/_Projects/FoxxDesk2/.rebrand_backup/20260701_085727`
 
 ## Arquivos alterados
 
