@@ -77,11 +77,7 @@ lazy_static::lazy_static! {
     static ref KEY_PAIR: Mutex<Option<KeyPair>> = Default::default();
     static ref USER_DEFAULT_CONFIG: RwLock<(UserDefaultConfig, Instant)> = RwLock::new((UserDefaultConfig::load(), Instant::now()));
     pub static ref NEW_STORED_PEER_CONFIG: Mutex<HashSet<String>> = Default::default();
-    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
-        ("custom-rendezvous-server".to_string(), DEFAULT_RENDEZVOUS_SERVER.to_string()),
-        ("relay-server".to_string(), DEFAULT_RELAY_SERVER.to_string()),
-        ("key".to_string(), DEFAULT_CUSTOM_CLIENT_KEY.to_string()),
-    ]));
+    pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref DEFAULT_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref OVERWRITE_DISPLAY_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
@@ -1251,13 +1247,20 @@ impl Config {
     }
 
     pub fn get_option(k: &str) -> String {
-        get_or(
+        let value = get_or(
             &OVERWRITE_SETTINGS,
             &CONFIG2.read().unwrap().options,
             &DEFAULT_SETTINGS,
             k,
         )
-        .unwrap_or_default()
+        .unwrap_or_default();
+        if value.is_empty() && k == keys::OPTION_RELAY_SERVER {
+            return DEFAULT_RELAY_SERVER.to_string();
+        }
+        if value.is_empty() && k == "key" {
+            return DEFAULT_CUSTOM_CLIENT_KEY.to_string();
+        }
+        value
     }
 
     pub fn get_bool_option(k: &str) -> bool {
