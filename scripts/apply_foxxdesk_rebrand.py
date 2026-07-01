@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v16-portable-packer-execbits-safe-no-zip-2026-07-01"
+SCRIPT_VERSION = "v17-portable-packer-path-guard-safe-no-zip-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -761,14 +761,14 @@ def patch_upstream_dependency_branches(rel: str, text: str) -> str:
 def patch_portable_packer_robustness(rel: str, text: str) -> str:
     '''Corrige caminhos frágeis do portable packer no Windows/Git Bash.
 
-    O erro `The executable must locate in source folder` acontece porque
-    `libs/portable/generate.py` usava `startswith()` textual para comparar
-    caminhos. Em GitHub Actions Windows, caminhos podem aparecer como
-    `/d/a/...` em bash e `D:\\a\\...` no Python nativo, então a comparação
-    pode falhar mesmo com o executável dentro da pasta.
+    V17 corrige também o caso em que o workflow passa um executável FORA da
+    pasta fonte, por exemplo:
 
-    Também evita passar caminho completo no `-e`: quando `-f` já aponta para
-    a pasta, `-e foxxdesk.exe` é mais robusto e o próprio generate.py resolve.
+      source folder: D:\\a\\FoxxDesk2\\FoxxDesk2\\foxxdesk
+      executable:    D:\\a\\FoxxDesk2\\rustdesk\\rustdesk.exe
+
+    Nesse caso, `generate.py` deve procurar o executável correto dentro de
+    `-f` antes de falhar. Ele NÃO deve empacotar executável fora da pasta.
     '''
     if rel == "libs/portable/generate.py":
         def restore_fallback_names(src: str) -> str:
@@ -777,15 +777,16 @@ def patch_portable_packer_robustness(rel: str, text: str) -> str:
                 '["foxxdesk.exe", "FoxxDesk.exe", "rustdesk.exe", "RustDesk.exe"]',
             )
 
-        if "GitHub Actions on Windows may mix /d/a/... and D:" in text:
+        if "FoxxDesk portable packer path guard v17" in text:
             return restore_fallback_names(text)
-        old = '''    exe: str = os.path.abspath(options.executable)
+
+        old_original = """    exe: str = os.path.abspath(options.executable)
     if not exe.startswith(os.path.abspath(folder)):
         print("The executable must locate in source folder")
         exit(-1)
     exe = '.' + exe[len(os.path.abspath(folder)):]
-'''
-        new = '''    folder_abs = os.path.abspath(folder)
+"""
+        old_v16 = """    folder_abs = os.path.abspath(folder)
     exe_abs = os.path.abspath(options.executable)
 
     # GitHub Actions on Windows may mix /d/a/... and D:\\a\\... paths.
@@ -825,37 +826,114 @@ def patch_portable_packer_robustness(rel: str, text: str) -> str:
         exit(-1)
 
     exe = './' + os.path.relpath(exe_abs, folder_abs).replace(os.sep, '/')
-'''
-        if old in text:
-            text = text.replace(old, new, 1)
+"""
+        new_guard = """    folder_abs = os.path.abspath(folder)
+    requested_exe_abs = os.path.abspath(options.executable)
+
+    # FoxxDesk portable packer path guard v17.
+    # GitHub Actions on Windows may mix /d/a/... and D:\\a\\... paths, and
+    # older workflow lines may still pass ../../rustdesk/rustdesk.exe while
+    # -f already points to ../../foxxdesk/. Only package an executable that is
+    # actually inside the source folder.
+    def _is_inside_source(path: str) -> bool:
+        try:
+            folder_norm = os.path.normcase(os.path.normpath(folder_abs))
+            path_norm = os.path.normcase(os.path.normpath(path))
+            return os.path.commonpath([folder_norm, path_norm]) == folder_norm
+        except ValueError:
+            return False
+
+    fallback_names = []
+    requested_name = os.path.basename(requested_exe_abs)
+    if requested_name:
+        fallback_names.append(requested_name)
+    fallback_names += ["foxxdesk.exe", "FoxxDesk.exe", "rustdesk.exe", "RustDesk.exe"]
+
+    exe_abs = None
+    if _is_inside_source(requested_exe_abs) and os.path.isfile(requested_exe_abs):
+        exe_abs = requested_exe_abs
+    else:
+        seen_names = set()
+        for name in fallback_names:
+            if not name or name in seen_names:
+                continue
+            seen_names.add(name)
+            candidate = os.path.join(folder_abs, name)
+            if os.path.isfile(candidate):
+                if os.path.abspath(candidate) != requested_exe_abs:
+                    print(f"Executable requested as {requested_exe_abs}; using source executable {candidate}")
+                exe_abs = candidate
+                break
+
+    if exe_abs is None:
+        if not _is_inside_source(requested_exe_abs):
+            print("The executable must locate in source folder")
+            print(f"  source folder: {folder_abs}")
+            print(f"  executable:    {requested_exe_abs}")
+            print("  tried inside source folder:")
+            for name in dict.fromkeys(fallback_names):
+                print(f"  - {os.path.join(folder_abs, name)}")
+        else:
+            print(f"Executable not found: {requested_exe_abs}")
+        if os.path.isdir(folder_abs):
+            print("Source folder contents:")
+            for item in sorted(os.listdir(folder_abs)):
+                print(f"  - {item}")
+        else:
+            print(f"Source folder does not exist: {folder_abs}")
+        exit(-1)
+
+    exe = './' + os.path.relpath(exe_abs, folder_abs).replace(os.sep, '/')
+"""
+        if old_v16 in text:
+            text = text.replace(old_v16, new_guard, 1)
+        elif old_original in text:
+            text = text.replace(old_original, new_guard, 1)
+        else:
+            # Se o upstream mudou, não força alteração cega. O relatório do script
+            # mostrará pendência se o build continuar chamando o trecho antigo.
+            return restore_fallback_names(text)
         return restore_fallback_names(text)
 
     if rel == "build.py":
         # Quando já estamos passando -f <pasta>, passe apenas o nome do exe.
         # Isso evita comparação frágil de caminho absoluto no generate.py.
-        text = text.replace(
-            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/foxxdesk.exe')",
-            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
-        )
-        text = text.replace(
-            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/{APP_SLUG}.exe')",
-            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
-        )
-        text = text.replace(
-            "f'python3 ./generate.py -f ../../{res_dir} -o . -e ../../{res_dir}/foxxdesk-{version}-win7-install.exe')",
-            "f'python3 ./generate.py -f ../../{res_dir} -o . -e FoxxDesk.exe')",
-        )
+        replacements = {
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/foxxdesk.exe')":
+                "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/{APP_SLUG}.exe')":
+                "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../rustdesk/rustdesk.exe')":
+                "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../foxxdesk/rustdesk.exe')":
+                "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
+            "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../foxxdesk/foxxdesk.exe')":
+                "f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e {APP_SLUG}.exe')",
+            "f'python3 ./generate.py -f ../../{res_dir} -o . -e ../../{res_dir}/foxxdesk-{version}-win7-install.exe')":
+                "f'python3 ./generate.py -f ../../{res_dir} -o . -e FoxxDesk.exe')",
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
         return text
 
     if rel == ".github/workflows/flutter-build.yml":
-        text = text.replace(
-            "python3 ./generate.py -f ../../foxxdesk/ -o . -e ../../foxxdesk/foxxdesk.exe",
-            "python3 ./generate.py -f ../../foxxdesk/ -o . -e foxxdesk.exe",
-        )
-        text = text.replace(
-            "python3 ./generate.py -f ../../Release/ -o . -e ../../Release/foxxdesk.exe",
-            "python3 ./generate.py -f ../../Release/ -o . -e foxxdesk.exe",
-        )
+        # Corrige comandos antigos/agressivos que apontam -e para fora da pasta
+        # indicada por -f. O portable packer exige que o executável esteja dentro
+        # da source folder.
+        patterns = [
+            "../../rustdesk/rustdesk.exe",
+            "../../rustdesk/RustDesk.exe",
+            "../../foxxdesk/rustdesk.exe",
+            "../../foxxdesk/RustDesk.exe",
+            "../../foxxdesk/foxxdesk.exe",
+            "../../foxxdesk/FoxxDesk.exe",
+            "../../Release/foxxdesk.exe",
+            "../../Release/FoxxDesk.exe",
+            "../../Release/rustdesk.exe",
+            "../../Release/RustDesk.exe",
+        ]
+        for pat in patterns:
+            text = text.replace(f"-e {pat}", "-e foxxdesk.exe")
         return text
 
     return text
@@ -1224,7 +1302,7 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
         f"- Perfil: `{args.profile}`",
-        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer + chmod executável`",
+        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável`",
         "- Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.",
         "",
         "## Valores dinâmicos",

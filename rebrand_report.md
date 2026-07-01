@@ -1,14 +1,14 @@
 # Relatório de rebrand FoxxDesk
 
-- Data/hora: `2026-07-01 11:44:23`
+- Data/hora: `2026-07-01 12:41:48`
 - Modo: `apply`
 - Projeto alvo: `/home/mateus/_Projects/FoxxDesk2`
 - Script: `apply_foxxdesk_rebrand_all_files_no_zip_v16.py`
-- Versão do script: `v16-portable-packer-execbits-safe-no-zip-2026-07-01`
+- Versão do script: `v17-portable-packer-path-guard-safe-no-zip-2026-07-01`
 - Payload/ZIP/manifesto externo: `não`
 - Espelhamento/substituição de arquivo inteiro por referência antiga: `não`
 - Perfil: `full`
-- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer + chmod executável`
+- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável`
 - Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.
 
 ## Valores dinâmicos
@@ -23,20 +23,18 @@
 
 - Arquivos permitidos na allowlist: `262`
 - Arquivos analisados: `271`
-- Arquivos alterados: `4`
-- Arquivos já aplicados/sem mudança: `259`
+- Arquivos alterados: `2`
+- Arquivos já aplicados/sem mudança: `260`
 - Arquivos esperados não encontrados: `4`
 - Arquivos ignorados: `4`
 - Renomeações/cópias criadas: `0`
 - Pendências: `0`
-- Backup: `/home/mateus/_Projects/FoxxDesk2/.rebrand_backup/20260701_114422`
+- Backup: `/home/mateus/_Projects/FoxxDesk2/.rebrand_backup/20260701_124121`
 
 ## Arquivos alterados
 
 - `.github/workflows/flutter-build.yml`
-- `build.py`
 - `libs/portable/generate.py`
-- `scripts/fix_generated_bridge_compat.py`
 
 ## Arquivos renomeados/copiados
 
@@ -60,11 +58,8 @@ Nenhum.
 
 | Status | Arquivo | Linha | Ação | Mensagem |
 |---|---|---:|---|---|
-| alterado | `.github/workflows/flutter-build.yml` | 510 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
-| alterado | `build.py` | 462 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
-| alterado | `libs/portable/generate.py` | 103 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
-| chmod +x | `build.py` | 1 | garantir bit executável no Git/CI | marca como executável; rode git add para registrar modo 100755 |
-| chmod +x | `scripts/fix_generated_bridge_compat.py` | 1 | garantir bit executável no Git/CI | marca como executável; rode git add para registrar modo 100755 |
+| alterado | `.github/workflows/flutter-build.yml` | 339 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
+| alterado | `libs/portable/generate.py` | 104 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
 
 ## Pendências
 
