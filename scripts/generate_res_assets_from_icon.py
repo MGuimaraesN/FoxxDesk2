@@ -2,15 +2,11 @@
 """
 Generate brand image assets under ./res from res/icon.png.
 
-Rules:
-- Source image: res/icon.png
-- Generate only .png, .svg, .ico assets defined in the internal manifest.
-- Exclude logo-header.svg and design.svg.
-- Preserve the reference dimensions/pattern discovered from the FoxxDesk project.
-- SVG outputs are generated as SVG wrappers embedding the PNG source as base64.
-  This preserves the visual identity, but it is not a true vector trace.
-- Can run in --dry-run mode.
-- Creates backups before overwriting files in --apply mode.
+Versao v2:
+- Corrige SVGs com viewBox deslocado, como res/scalable.svg e res/rustdesk-banner.svg.
+- Mantem logo-header.svg e design.svg excluidos.
+- Usa res/icon.png como fonte unica.
+- Gera PNG, SVG wrapper com PNG embutido e ICO.
 """
 
 from __future__ import annotations
@@ -21,11 +17,10 @@ import datetime as dt
 import io
 import shutil
 from pathlib import Path
-from typing import Iterable
 
 from PIL import Image
 
-SCRIPT_VERSION = "icon-assets-v1-2026-06-30"
+SCRIPT_VERSION = "icon-assets-v2-fix-svg-viewbox-2026-06-30"
 
 PNG_ASSETS = [
     {"path": "res/32x32.png", "size": (32, 32)},
@@ -41,13 +36,12 @@ PNG_ASSETS = [
 SVG_ASSETS = [
     {"path": "res/FoxxDesk.svg", "width": 128, "height": 128, "viewBox": "0 0 96 95.999999"},
     {"path": "res/logo.svg", "width": 26, "height": 26, "viewBox": "0 0 96 95.999999"},
-    {"path": "res/rustdesk-banner.svg", "width": 114, "height": 26, "viewBox": "66.993 897.484 113.652 26"},
     {"path": "res/scalable.svg", "width": 32, "height": 32, "viewBox": "66.993 897.484 32 32.000001"},
 ]
 
 ICO_ASSETS = [
-    {"path": "res/icon.ico", "render_size": (256, 256), "ico_sizes": [(16,16), (24,24), (32,32), (48,48), (64,64), (128,128), (256,256)]},
-    {"path": "res/tray-icon.ico", "render_size": (32, 32), "ico_sizes": [(16,16), (24,24), (32,32)]},
+    {"path": "res/icon.ico", "render_size": (256, 256), "ico_sizes": [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]},
+    {"path": "res/tray-icon.ico", "render_size": (32, 32), "ico_sizes": [(16, 16), (24, 24), (32, 32)]},
 ]
 
 EXCLUDED = {"res/logo-header.svg", "res/design.svg", "res/icon.png"}
@@ -78,12 +72,42 @@ def png_bytes(src: Image.Image, size: tuple[int, int]) -> bytes:
     return out.getvalue()
 
 
+def parse_viewbox(viewbox: str) -> tuple[float, float, float, float]:
+    parts = [float(x) for x in viewbox.replace(",", " ").split()]
+    if len(parts) != 4:
+        raise ValueError(f"viewBox invalido: {viewbox}")
+    return parts[0], parts[1], parts[2], parts[3]
+
+
+def fmt_num(value: float) -> str:
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.6f}".rstrip("0").rstrip(".")
+
+
 def svg_bytes(src: Image.Image, width: int, height: int, viewbox: str) -> bytes:
-    png = png_bytes(src, (width, height))
+    min_x, min_y, vb_w, vb_h = parse_viewbox(viewbox)
+
+    # A imagem precisa ficar dentro do proprio viewBox.
+    # Isso corrige arquivos cujo viewBox nao começa em 0 0, como scalable.svg.
+    render_w = max(1, round(vb_w))
+    render_h = max(1, round(vb_h))
+    png = png_bytes(src, (render_w, render_h))
     b64 = base64.b64encode(png).decode("ascii")
+
     svg = f'''<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{width}" height="{height}" viewBox="{viewbox}" version="1.1">
-  <image width="100%" height="100%" preserveAspectRatio="xMidYMid meet" xlink:href="data:image/png;base64,{b64}" />
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="{width}"
+     height="{height}"
+     viewBox="{viewbox}"
+     version="1.1">
+  <image x="{fmt_num(min_x)}"
+         y="{fmt_num(min_y)}"
+         width="{fmt_num(vb_w)}"
+         height="{fmt_num(vb_h)}"
+         preserveAspectRatio="xMidYMid meet"
+         xlink:href="data:image/png;base64,{b64}" />
 </svg>
 '''
     return svg.encode("utf-8")
@@ -95,35 +119,38 @@ def ico_bytes(src: Image.Image, render_size: tuple[int, int], ico_sizes: list[tu
     return out.getvalue()
 
 
-def backup_file(root: Path, rel: str) -> Path:
-    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_root = root / ".icon_asset_backup" / timestamp
+def backup_file(root: Path, rel: str, backup_root: Path) -> None:
     src = root / rel
     dst = backup_root / rel
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
-    return backup_root
 
 
-def write_if_changed(root: Path, rel: str, data: bytes, dry_run: bool, report: list[str]) -> str:
+def write_if_changed(root: Path, rel: str, data: bytes, dry_run: bool, backup_root: Path, report: list[str]) -> str:
+    if rel in EXCLUDED:
+        report.append(f"- excluido por regra: `{rel}`")
+        return "skipped"
+
     path = root / rel
     existed = path.exists()
     current = path.read_bytes() if existed else None
+
     if current == data:
-        report.append(f"- já está atualizado: `{rel}`")
+        report.append(f"- ja esta atualizado: `{rel}`")
         return "unchanged"
 
     if dry_run:
-        action = "será atualizado" if existed else "será criado"
+        action = "sera atualizado" if existed else "sera criado"
         report.append(f"- {action}: `{rel}`")
         return "planned"
 
-    backup_root = None
     if existed:
-        backup_root = backup_file(root, rel)
+        backup_file(root, rel, backup_root)
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
-    if backup_root:
+
+    if existed:
         report.append(f"- atualizado: `{rel}` (backup em `{backup_root}`)")
     else:
         report.append(f"- criado: `{rel}`")
@@ -131,79 +158,87 @@ def write_if_changed(root: Path, rel: str, data: bytes, dry_run: bool, report: l
 
 
 def confirm() -> None:
-    ans = input("Aplicar geração de assets? [y/N]: ").strip().lower()
+    ans = input("Aplicar geracao de assets? [y/N]: ").strip().lower()
     if ans not in {"y", "yes", "s", "sim"}:
-        raise SystemExit("Operação cancelada.")
+        raise SystemExit("Operacao cancelada.")
 
 
-def generate(root: Path, source_rel: str, dry_run: bool) -> tuple[list[str], dict[str,int]]:
+def generate(root: Path, source_rel: str, dry_run: bool) -> tuple[list[str], dict[str, int], Path]:
     src_path = root / source_rel
     if not src_path.exists():
-        raise FileNotFoundError(f"Arquivo fonte não encontrado: {src_path}")
+        raise FileNotFoundError(f"Arquivo fonte nao encontrado: {src_path}")
+
+    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_root = root / ".icon_asset_backup" / timestamp
+
+    report: list[str] = []
+    stats = {"planned": 0, "written": 0, "unchanged": 0, "skipped": 0}
 
     with Image.open(src_path) as im:
         src = ensure_rgba(im)
 
-        report: list[str] = []
-        stats = {"planned": 0, "written": 0, "unchanged": 0}
-
         for item in PNG_ASSETS:
             data = png_bytes(src, item["size"])
-            status = write_if_changed(root, item["path"], data, dry_run, report)
+            status = write_if_changed(root, item["path"], data, dry_run, backup_root, report)
             stats[status] += 1
 
         for item in SVG_ASSETS:
-            if item["path"] in EXCLUDED:
-                continue
             data = svg_bytes(src, item["width"], item["height"], item["viewBox"])
-            status = write_if_changed(root, item["path"], data, dry_run, report)
+            status = write_if_changed(root, item["path"], data, dry_run, backup_root, report)
             stats[status] += 1
 
         for item in ICO_ASSETS:
             data = ico_bytes(src, item["render_size"], item["ico_sizes"])
-            status = write_if_changed(root, item["path"], data, dry_run, report)
+            status = write_if_changed(root, item["path"], data, dry_run, backup_root, report)
             stats[status] += 1
 
-    return report, stats
+    return report, stats, backup_root
 
 
 def main() -> None:
     args = parse_args()
     root = Path(args.target).resolve()
+
     if not root.exists() or not root.is_dir():
-        raise SystemExit(f"Pasta alvo inválida: {root}")
+        raise SystemExit(f"Pasta alvo invalida: {root}")
 
     if args.apply and not args.yes:
         confirm()
 
-    report, stats = generate(root, args.source, args.dry_run)
+    report, stats, backup_root = generate(root, args.source, args.dry_run)
     mode = "dry-run" if args.dry_run else "apply"
     report_path = root / "icon_assets_report.md"
+    changed = stats["planned"] if args.dry_run else stats["written"]
 
     lines = [
-        f"# Relatório de geração de assets\n",
+        "# Relatorio de geracao de assets",
+        "",
         f"- Script: `{SCRIPT_VERSION}`",
         f"- Modo: `{mode}`",
         f"- Projeto alvo: `{root}`",
         f"- Fonte: `{args.source}`",
+        f"- Backup: `{backup_root if args.apply and stats['written'] else 'nao criado'}`",
         "",
-        "## Observações",
-        "- O arquivo `res/icon.png` é a fonte única.",
-        "- `res/logo-header.svg` e `res/design.svg` são excluídos e nunca são gerados.",
-        "- Arquivos `.svg` são gerados como SVG wrapper com PNG embutido em base64; não são vetores reais.",
-        "- Links/arquivos não listados no manifesto não são tocados.",
+        "## Observacoes",
         "",
-        "## Resultado",
-        f"- Planejados/alteráveis: `{stats['planned']}`" if args.dry_run else f"- Gravados: `{stats['written']}`",
-        f"- Já atualizados: `{stats['unchanged']}`",
+        "- O arquivo `res/icon.png` e a fonte unica.",
+        "- `res/logo-header.svg` e `res/design.svg` sao excluidos e nunca sao gerados.",
+        "- `res/scalable.svg` e `res/rustdesk-banner.svg` preservam viewBox deslocado e posicionam a imagem dentro do viewBox.",
+        "- Arquivos `.svg` sao gerados como SVG wrapper com PNG embutido em base64; nao sao vetores reais.",
+        "",
+        "## Resumo",
+        "",
+        f"- Arquivos alteraveis/criados no modo atual: `{changed}`",
+        f"- Ja atualizados: `{stats['unchanged']}`",
+        f"- Pulados/excluidos: `{stats['skipped']}`",
         "",
         "## Arquivos tratados",
+        "",
     ]
     lines.extend(report)
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    summary_changed = stats['planned'] if args.dry_run else stats['written']
-    print(f"Modo: {mode} | arquivos alterados: {summary_changed} | já atualizados: {stats['unchanged']} | relatório: {report_path}")
+    print(f"Modo: {mode} | arquivos alterados: {changed} | ja atualizados: {stats['unchanged']} | relatorio: {report_path}")
 
 
 if __name__ == "__main__":
