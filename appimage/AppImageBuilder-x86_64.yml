@@ -19,7 +19,7 @@ AppDir:
     name: foxxdesk
     icon: foxxdesk
     version: 1.4.8
-    exec: usr/share/foxxdesk/foxxdesk
+    exec: usr/share/rustdesk/rustdesk
     exec_args: $@
   apt:
     arch:

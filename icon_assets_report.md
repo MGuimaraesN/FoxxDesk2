@@ -4,7 +4,7 @@
 - Modo: `apply`
 - Projeto alvo: `/home/mateus/_Projects/FoxxDesk2`
 - Fonte: `res/icon.png`
-- Backup: `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`
+- Backup: `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`
 
 ## Observacoes
 
@@ -15,22 +15,22 @@
 
 ## Resumo
 
-- Arquivos alteraveis/criados no modo atual: `12`
-- Ja atualizados: `1`
+- Arquivos alteraveis/criados no modo atual: `13`
+- Ja atualizados: `0`
 - Pulados/excluidos: `0`
 
 ## Arquivos tratados
 
-- atualizado: `res/32x32.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/64x64.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/128x128.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/128x128@2x.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- ja esta atualizado: `res/FoxxDesk.png`
-- atualizado: `res/mac-icon.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/mac-tray-dark-x2.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/mac-tray-light-x2.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/FoxxDesk.svg` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/logo.svg` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/scalable.svg` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/icon.ico` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
-- atualizado: `res/tray-icon.ico` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260630_231513`)
+- atualizado: `res/32x32.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- atualizado: `res/64x64.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- atualizado: `res/128x128.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- atualizado: `res/128x128@2x.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- criado: `res/FoxxDesk.png`
+- atualizado: `res/mac-icon.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- atualizado: `res/mac-tray-dark-x2.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- atualizado: `res/mac-tray-light-x2.png` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- criado: `res/FoxxDesk.svg`
+- atualizado: `res/logo.svg` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- atualizado: `res/scalable.svg` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- atualizado: `res/icon.ico` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)
+- atualizado: `res/tray-icon.ico` (backup em `/home/mateus/_Projects/FoxxDesk2/.icon_asset_backup/20260701_090324`)

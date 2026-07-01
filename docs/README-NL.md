@@ -11,7 +11,7 @@
 
 Chat met ons: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Geavanceerde%20Functies-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Geavanceerde%20Functies-blue)](https://rustdesk.com/pricing.html)
 
 Alweer een andere programma voor -bureaublad op afstand-, geschreven in Rust. Werkt -out of the box-, geen configuratie nodig. U heeft volledige controle over uw gegevens, en hoeft zich geen zorgen te maken over de beveiliging. U kunt onze rendez-vous/relay server gebruiken, [je eigen server opzetten](https://rustdesk.com/blog/id-relay-set), of [je eigen rendez-vous/relay-server schrijven](https://github.com/rustdesk/rustdesk-server-demo).
 
@@ -154,7 +154,7 @@ Zorg ervoor dat je deze commando's van de root van de FoxxDesk-repository uitvoe
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: GUI
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: geluids-, klembord-, invoer- en video-services, netwerkverbindingen
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: voor het opzetten van peer-verbindingen
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Communicatie met [rustdesk-server](https://github.com/rustdesk/rustdesk-server), afwachten van redirect op afstand (TCP hole punching) of een relayed verbinding
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Communicatie met [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), afwachten van redirect op afstand (TCP hole punching) of een relayed verbinding
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: platformspecifieke code
 
 ## Snapshot

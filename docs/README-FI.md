@@ -11,7 +11,7 @@
 
 Juttele meidän kanssa: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Edistyneet%20Ominaisuudet-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Edistyneet%20Ominaisuudet-blue)](https://rustdesk.com/pricing.html)
 
 Vielä yksi etätyöpöytäohjelmisto, ohjelmoitu Rust-kielellä. Toimii suoraan pakkauksesta, ei tarvitse asetusta. Hallitset täysin tietojasi, ei tarvitse murehtia turvallisuutta. Voit käyttää meidän rendezvous/relay-palvelinta, [aseta omasi](https://rustdesk.com/server), tai [kirjoittaa oma rendezvous/relay-palvelin](https://github.com/rustdesk/rustdesk-server-demo).
 
@@ -124,7 +124,7 @@ Tai, jos olet suorittamassa jakeluversion suoritettavaa tiedostoa:
 target/release/foxxdesk
 ```
 
-Varmista, että suoritat näitä komentoja FoxxDesktop-tietovaraston juurihakemistossa, muutoin sovellus ei ehkä löydä vaadittuja resursseja. Huomaa myös, että muita cargo-alikomentoja kuten `install` tai `run` ei nykyisin tueta tässä menetelmässä, koska ne asentavat tai suorittavat ohjelman säiliön sisällä eikä isäntäohjelman sisällä.
+Varmista, että suoritat näitä komentoja RustDesktop-tietovaraston juurihakemistossa, muutoin sovellus ei ehkä löydä vaadittuja resursseja. Huomaa myös, että muita cargo-alikomentoja kuten `install` tai `run` ei nykyisin tueta tässä menetelmässä, koska ne asentavat tai suorittavat ohjelman säiliön sisällä eikä isäntäohjelman sisällä.
 
 ## Tiedostorakenne
 
@@ -134,7 +134,7 @@ Varmista, että suoritat näitä komentoja FoxxDesktop-tietovaraston juurihakemi
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: Graafinen käyttöliittymä
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: audio/clipboard/input/video services, and network connections
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: start a peer connection
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Communicate with [rustdesk-server](https://github.com/rustdesk/rustdesk-server), wait for remote direct (TCP hole punching) or relayed connection
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Communicate with [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), wait for remote direct (TCP hole punching) or relayed connection
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: platform specific code
 
 ## Tilannekuvat

@@ -11,7 +11,7 @@
 
 Mari mengobrol bersama kami: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Fitur%20Lanjutan-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Fitur%20Lanjutan-blue)](https://rustdesk.com/pricing.html)
 
 [![Open Bounties](https://img.shields.io/endpoint?url=https%3A%2F%2Fconsole.algora.io%2Fapi%2Fshields%2Frustdesk%2Fbounties%3Fstatus%3Dopen)](https://console.algora.io/org/rustdesk/bounties?status=open)
 
@@ -152,7 +152,7 @@ Harap pastikan bahwa kamu menjalankan perintah ini dari repositori root FoxxDesk
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: GUI
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: audio/clipboard/input/video services, dan network connections
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: start a peer connection
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Komunikasi dengan [rustdesk-server](https://github.com/rustdesk/rustdesk-server), menunggu untuk remote direct (TCP hole punching) atau relayed connection
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Komunikasi dengan [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), menunggu untuk remote direct (TCP hole punching) atau relayed connection
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: kode khusus platform
 
 ## Snapshots

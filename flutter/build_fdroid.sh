@@ -77,25 +77,25 @@ arm64-v8a)
 	FLUTTER_TARGET=android-arm64
 	NDK_TARGET=aarch64-linux-android
 	RUST_TARGET=aarch64-linux-android
-	FOXXDESK_FEATURES='flutter,hwcodec'
+	RUSTDESK_FEATURES='flutter,hwcodec'
 	;;
 armeabi-v7a)
 	FLUTTER_TARGET=android-arm
 	NDK_TARGET=arm-linux-androideabi
 	RUST_TARGET=armv7-linux-androideabi
-	FOXXDESK_FEATURES='flutter,hwcodec'
+	RUSTDESK_FEATURES='flutter,hwcodec'
 	;;
 x86_64)
 	FLUTTER_TARGET=android-x64
 	NDK_TARGET=x86_64-linux-android
 	RUST_TARGET=x86_64-linux-android
-	FOXXDESK_FEATURES='flutter'
+	RUSTDESK_FEATURES='flutter'
 	;;
 x86)
 	FLUTTER_TARGET=android-x86
 	NDK_TARGET=i686-linux-android
 	RUST_TARGET=i686-linux-android
-	FOXXDESK_FEATURES='flutter'
+	RUSTDESK_FEATURES='flutter'
 	;;
 *)
 	echo "ERROR: Unknown Android ABI '${ANDROID_ABI}'!" >&2
@@ -135,7 +135,7 @@ prebuild)
 		.env.CARGO_NDK_VERSION \
 		.github/workflows/flutter-build.yml)"
 
-	# Flutter used to compile main Foxxdesk library
+	# Flutter used to compile main Rustdesk library
 
 	FLUTTER_VERSION="$(yq -r \
 		.env.ANDROID_FLUTTER_VERSION \
@@ -307,7 +307,7 @@ prebuild)
 	git apply res/fdroid/patches/*.patch
 
 	# If Flutter version used to generate bridge files differs from Flutter
-	# version used to compile Foxxdesk library, generate bridge using the
+	# version used to compile Rustdesk library, generate bridge using the
 	# `FLUTTER_BRIDGE_VERSION` an restore the pubspec later
 
 	if [ "${FLUTTER_VERSION}" != "${FLUTTER_BRIDGE_VERSION}" ]; then
@@ -407,7 +407,7 @@ build)
 	# '.github/workflows/flutter-build.yml'
 	#
 
-	# Flutter used to compile main Foxxdesk library
+	# Flutter used to compile main Rustdesk library
 
 	FLUTTER_VERSION="$(yq -r \
 		.env.ANDROID_FLUTTER_VERSION \
@@ -462,7 +462,7 @@ build)
 		build \
 		--locked \
 		--release \
-		--features "${FOXXDESK_FEATURES}"
+		--features "${RUSTDESK_FEATURES}"
 
 	mkdir -p "flutter/android/app/src/main/jniLibs/${ANDROID_ABI}"
 

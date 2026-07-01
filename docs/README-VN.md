@@ -13,7 +13,7 @@
 
 Hãy trao đổi với chúng tôi qua: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-T%C3%ADnh%20N%C4%83ng%20N%C3%A2ng%20Cao-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-T%C3%ADnh%20N%C4%83ng%20N%C3%A2ng%20Cao-blue)](https://rustdesk.com/pricing.html)
 
 FoxxDesk là một phần mềm điểu khiển máy tính từ xa mã nguồn mở, được viết bằng Rust. Nó hoạt động ngay sau khi cài đặt, không yêu cầu cấu hình phức tạp. Bạn có toàn quyền kiểm soát với dữ liệu của mình mà không cần phải lo lắng về vấn đề bảo mật. Bạn có thể sử dụng máy chủ rendezvous/relay của chúng tôi hoặc [tự cài đặt máy chủ của riêng mình](https://rustdesk.com/server) hay thậm chí [tự tạo máy chủ rendezvous/relay cho riêng bạn](https://github.com/rustdesk/rustdesk-server-demo).
 
@@ -145,7 +145,7 @@ Hãy đảm bảo rằng bạn đang chạy các lệnh này từ gốc của th
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: giao diện người dùng
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: các dịch vụ âm thanh, clipboard, đầu vào, video và các kết nối mạng
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: bắt đầu kết nối với một peer
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: giao tiếp với [rustdesk-server](https://github.com/rustdesk/rustdesk-server), đợi kết nối trực tiếp (TCP hole punching) hoặc kết nối được chuyển tiếp.
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: giao tiếp với [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), đợi kết nối trực tiếp (TCP hole punching) hoặc kết nối được chuyển tiếp.
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: mã nguồn riêng cho mỗi nền tảng
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: Mã Flutter dành máy tính và điện thoại
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/js)**: Mã JavaScript dành cho giao diện trên web bằng Flutter

@@ -11,7 +11,7 @@
 
 Babili kun ni: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Altnivela%20Funkcioj-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Altnivela%20Funkcioj-blue)](https://rustdesk.com/pricing.html)
 
 Denove alia fora labortabla programo, skribita en Rust. Ĝi funkcias elskatole, ne bezonas konfiguraĵon. Vi havas la tutan kontrolon sur viaj datumoj, sen zorgo pri sekureco. Vi povas uzi nian servilon rendezvous/relajsan, [agordi vian propran](https://rustdesk.com/server), aŭ [skribi vian propran servilon rendezvous/relajsan](https://github.com/rustdesk/rustdesk-server-demo).
 
@@ -134,7 +134,7 @@ Bonvolu certigi, ke vi plenumas tiujn komandojn el la radiko de la deponejo Foxx
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: interfaco
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: aŭdio/poŝo/enigo/videa servoj, kaj retkonektoj
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: starti konekto kun samtavolo
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: komuniki kun [rustdesk-server](https://github.com/rustdesk/rustdesk-server), atendi foran direktan (TCP hole punching) aŭ relajsatan konekton
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: komuniki kun [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), atendi foran direktan (TCP hole punching) aŭ relajsatan konekton
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: operaciumspecifa kodo
 
 ## Ekrankopio

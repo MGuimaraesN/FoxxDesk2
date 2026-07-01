@@ -1,6 +1,4 @@
-# FoxxDesk MSI project
-
-This installer definition is adapted from the upstream FoxxDesk MSI project. Driver names and other upstream integration identifiers remain unchanged where required for compatibility.
+# FoxxDesk msi project
 
 Use Visual Studio 2022 to compile this project.
 

@@ -48,8 +48,8 @@ fn main() {
     );
     let matches = App::new("foxxdesk")
         .version(crate::VERSION)
-        .author("FoxxDesk / MGN; based on FoxxDesk")
-        .about("FoxxDesk Remote Desktop command line tool")
+        .author("Purslane Ltd<info@foxxdesk.com>")
+        .about("FoxxDesk command line tool")
         .args_from_usage(&args)
         .get_matches();
     use hbb_common::{config::LocalConfig, env_logger::*};

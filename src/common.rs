@@ -1015,11 +1015,6 @@ pub fn get_uri_prefix() -> String {
     format!("{}://", get_app_name().to_lowercase())
 }
 
-#[inline]
-pub fn is_supported_uri_link(value: &str) -> bool {
-    value.starts_with(&get_uri_prefix()) || value.starts_with("rustdesk://")
-}
-
 #[cfg(target_os = "macos")]
 pub fn get_full_name() -> String {
     format!(
@@ -1092,7 +1087,7 @@ fn get_api_server_(api: String, custom: String) -> String {
 #[inline]
 pub fn is_public(url: &str) -> bool {
     let url = url.to_ascii_lowercase();
-    url.contains("rustdesk.com/") || url.ends_with("rustdesk.com")
+    url.contains("foxxdesk.com/") || url.ends_with("foxxdesk.com")
 }
 
 pub fn get_udp_punch_enabled() -> bool {
@@ -1928,7 +1923,7 @@ pub fn check_process(arg: &str, mut same_uid: bool) -> bool {
         if same_uid && p.user_id() != my_uid {
             continue;
         }
-        // On macOS p.cmd() can contain the FoxxDesk app path and launch-agent service name.
+        // on mac, p.cmd() get "/Applications/FoxxDesk.app/Contents/MacOS/FoxxDesk", "XPC_SERVICE_NAME=com.carriez.RustDesk_server"
         let parg = if p.cmd().len() <= 1 { "" } else { &p.cmd()[1] };
         if arg.is_empty() {
             if !parg.starts_with("--") {
@@ -2658,7 +2653,7 @@ mod tests {
     // ThrottledInterval tick at the same time as tokio interval, if no sleeps
     #[allow(non_snake_case)]
     #[tokio::test]
-    async fn test_FoxxDesk_interval() {
+    async fn test_RustDesk_interval() {
         let base_intervals = [interval_maker, interval_at_maker];
         for maker in base_intervals.into_iter() {
             let mut tokio_timer = maker();
@@ -2707,7 +2702,7 @@ mod tests {
     // ThrottledInterval tick less times than tokio interval, if there're sleeps
     #[allow(non_snake_case)]
     #[tokio::test]
-    async fn test_FoxxDesk_interval_sleep() {
+    async fn test_RustDesk_interval_sleep() {
         let base_intervals = [interval_maker, interval_at_maker];
         for (i, maker) in base_intervals.into_iter().enumerate() {
             let mut timer = rustdesk_interval(maker());
@@ -2768,17 +2763,17 @@ mod tests {
 
     #[test]
     fn test_is_public() {
-        // Test URLs containing "rustdesk.com/"
+        // Test URLs containing "foxxdesk.com/"
         assert!(is_public("https://rustdesk.com/"));
         assert!(is_public("https://www.rustdesk.com/"));
         assert!(is_public("https://api.rustdesk.com/v1"));
-        assert!(is_public("https://API.RUSTDESK.COM/v1"));
+        assert!(is_public("https://API.FOXXDESK.COM/v1"));
         assert!(is_public("https://rustdesk.com/path"));
 
-        // Test URLs ending with "rustdesk.com"
-        assert!(is_public("rustdesk.com"));
+        // Test URLs ending with "foxxdesk.com"
+        assert!(is_public("foxxdesk.com"));
         assert!(is_public("https://rustdesk.com"));
-        assert!(is_public("https://RustDesk.com"));
+        assert!(is_public("https://FoxxDesk.com"));
         assert!(is_public("http://www.rustdesk.com"));
         assert!(is_public("https://api.rustdesk.com"));
 
@@ -2788,7 +2783,7 @@ mod tests {
         assert!(!is_public("http://192.168.1.1"));
         assert!(!is_public("localhost"));
         assert!(!is_public("https://rustdesk.computer.com"));
-        assert!(!is_public("rustdesk.comhello.com"));
+        assert!(!is_public("foxxdesk.comhello.com"));
     }
 
     #[test]

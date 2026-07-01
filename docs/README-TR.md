@@ -17,7 +17,7 @@
 
 Bizimle sohbet edin: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Geli%C5%9Fmi%C5%9F%20%C3%96zellikler-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Geli%C5%9Fmi%C5%9F%20%C3%96zellikler-blue)](https://rustdesk.com/pricing.html)
 
 Rust dilinde yazılmış, başka bir uzak masaüstü yazılımı daha. Hiçbir yapılandırma gerekmeksizin, hemen kullanıma hazır. Güvenlik konusunda hiçbir endişe duymadan, verileriniz üzerinde tam kontrole sahip olun. Kendi rendezvous/relay sunucumuzu kullanabilirsiniz, [kendi sunucunuzu kurabilirsiniz](https://rustdesk.com/server) veya [kendi rendezvous/relay sunucunuzu yazabilirsiniz](https://github.com/rustdesk/rustdesk-server-demo).
 
@@ -163,7 +163,7 @@ Lütfen bu komutları FoxxDesk reposunun root klasöründe çalıştırdığın�
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: Eski Sciter UI (kaldırılacak)
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: ses/pano/input/video servisleri ve ağ bağlantıları
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: Eşli bağlantı başlat
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: [rustdesk-server](https://github.com/rustdesk/rustdesk-server) ile iletişime gir, remote direct(TCP delik açma) yada relay bağlantısı için bekle
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: [foxxdesk-server](https://github.com/rustdesk/rustdesk-server) ile iletişime gir, remote direct(TCP delik açma) yada relay bağlantısı için bekle
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: platforma özgü kod
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: Masaüstü ve mobil için Flutter kodu
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/v1/js)**: Flutter web istemcisi için JavaScript

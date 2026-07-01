@@ -1,4 +1,4 @@
-name: FoxxDesk Tag Build
+name: Flutter Tag Build
 
 on:
   workflow_dispatch:

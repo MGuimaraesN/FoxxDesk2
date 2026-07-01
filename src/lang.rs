@@ -192,7 +192,7 @@ pub fn translate_locale(name: String, locale: &str) -> String {
         }
         if !crate::is_rustdesk() {
             if s.contains("FoxxDesk")
-                && !name.starts_with("upgrade_foxxdesk_server_pro")
+                && !name.starts_with("upgrade_rustdesk_server_pro")
                 && name != "powered_by_me"
             {
                 let app_name = crate::get_app_name();
@@ -200,8 +200,9 @@ pub fn translate_locale(name: String, locale: &str) -> String {
                     s = s.replace("FoxxDesk", &app_name);
                 } else {
                     // https://github.com/rustdesk/rustdesk-server-pro/issues/845
-                    // If app_name contains "FoxxDesk" (e.g., "FoxxDesk-Admin"), avoid replacing
-                    // the base brand inside an already-substituted app name.
+                    // If app_name contains "FoxxDesk" (e.g., "FoxxDesk-Admin"), we need to avoid
+                    // replacing "FoxxDesk" within the already-substituted app_name, which would
+                    // cause duplication like "FoxxDesk-Admin" -> "FoxxDesk-Admin-Admin".
                     //
                     // app_name only contains alphanumeric and hyphen.
                     const PLACEHOLDER: &str = "#A-P-P-N-A-M-E#";

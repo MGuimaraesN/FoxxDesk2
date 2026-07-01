@@ -1,15 +1,15 @@
 Name:       foxxdesk
 Version:    1.1.9
 Release:    0
-Summary:    FoxxDesk Remote Desktop
-License:    AGPL-3.0
+Summary:    RPM package
+License:    GPL-3.0
 Requires:   gtk3 libxcb1 libXfixes3 alsa-utils libXtst6 libva2 pam gstreamer-plugins-base gstreamer-plugin-pipewire
 Recommends: libayatana-appindicator3-1 xdotool
 
 # https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/
 
 %description
-FoxxDesk Remote Desktop, a customized fork based on FoxxDesk.
+The best open-source remote desktop client software, written in Rust.
 
 %prep
 # we have no source, so nothing here

@@ -11,7 +11,7 @@
 
 Porozmawiaj z nami na: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Zaawansowane%20Funkcje-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Zaawansowane%20Funkcje-blue)](https://rustdesk.com/pricing.html)
 
 ## O projekcie
 
@@ -152,7 +152,7 @@ Upewnij się, że uruchamiasz te polecenia z katalogu głównego repozytorium Fo
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: GUI
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: audio/schowek/wejście(input)/wideo oraz połączenia sieciowe
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: uruchamia połączenie bezpośrednie
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Komunikacja z [rustdesk-server](https://github.com/rustdesk/rustdesk-server), czekanie na bezpośrednie (odpytywanie TCP) lub przekazywane połączenie
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Komunikacja z [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), czekanie na bezpośrednie (odpytywanie TCP) lub przekazywane połączenie
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: kod specyficzny dla danej platformy
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: kod Flutter dla urządzeń mobilnych
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/js)**: JavaScript dla Flutter - klient web

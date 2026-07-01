@@ -186,7 +186,7 @@ jobs:
           cargo -V
           rustc -V
 
-      - name: Build FoxxDesk
+      - name: Build foxxdesk
         run: |
           ./build.py --flutter ${{ matrix.job.extra-build-args }}
 
@@ -207,7 +207,7 @@ jobs:
           # Unlock keychain
           security default-keychain -s foxxdesk.keychain
           security unlock-keychain -p ${{ secrets.MACOS_P12_PASSWORD }} foxxdesk.keychain
-          # Start signing the FoxxDesk app and DMG.
+          # start sign the foxxdesk.app and dmg
           rm -rf *.dmg || true
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict ./flutter/build/macos/Build/Products/Release/FoxxDesk.app -vvv
           create-dmg --icon "FoxxDesk.app" 200 190 --hide-extension "FoxxDesk.app" --window-size 800 400 --app-drop-link 600 185 foxxdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/FoxxDesk.app
@@ -215,7 +215,7 @@ jobs:
           # notarize the foxxdesk-${{ env.VERSION }}.dmg
           rcodesign notary-submit --api-key-path ${{ github.workspace }}/foxxdesk.json  --staple foxxdesk-${{ env.VERSION }}.dmg
 
-      - name: Rename FoxxDesk
+      - name: Rename foxxdesk
         run: |
           for name in foxxdesk*??.dmg; do
               mv "$name" "${name%%.dmg}-${{ matrix.job.arch }}-flutter${{ matrix.job.flutter }}-flutter${{ matrix.job.date }}.dmg"
@@ -232,7 +232,7 @@ jobs:
 
   build-foxxdesk-android:
     if: false
-    name: build FoxxDesk android apk ${{ matrix.job.target }}
+    name: build foxxdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -343,7 +343,7 @@ jobs:
           # cp -rf /opt/rustdesk_thirdparty_lib/vcpkg/* /opt/artifacts/vcpkg/
           ls -ls /opt/artifacts/vcpkg/installed/arm64-android/lib/
 
-      - name: Build FoxxDesk lib
+      - name: Build foxxdesk lib
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
@@ -363,7 +363,7 @@ jobs:
             ;;
           esac
 
-      - name: Build FoxxDesk
+      - name: Build foxxdesk
         shell: bash
         env:
           JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64

@@ -11,7 +11,7 @@
 
 私たちと話す: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-%E9%AB%98%E5%BA%A6%E3%81%AA%E6%A9%9F%E8%83%BD-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-%E9%AB%98%E5%BA%A6%E3%81%AA%E6%A9%9F%E8%83%BD-blue)](https://rustdesk.com/pricing.html)
 
 Rustで書かれた、設定不要ですぐに使えるリモートデスクトップソフトウェアです。自分のデータを完全にコントロールでき、セキュリティの心配もありません。私たちのランデブー/リレーサーバを使うことも、[自分でサーバーをセットアップする](https://rustdesk.com/server) ことも、 [自分でランデブー/リレーサーバを作成する](https://github.com/rustdesk/rustdesk-server-demo)こともできます。
 
@@ -163,7 +163,7 @@ target/release/foxxdesk
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: 
 オーディオ/クリップボード/入力/ビデオ サービスとネットワーク接続
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: ピア接続の開始
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: [rustdesk-server](https://github.com/rustdesk/rustdesk-server)と通信し、リモートの直接接続(TCPホールパンチング)や中継接続を担う。
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: [foxxdesk-server](https://github.com/rustdesk/rustdesk-server)と通信し、リモートの直接接続(TCPホールパンチング)や中継接続を担う。
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: プラットフォーム固有のコード
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: デスクトップとモバイル向けのFlutterコード
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/js)**: Flutterウェブクライアント向けのJavaScript

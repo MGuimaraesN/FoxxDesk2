@@ -11,7 +11,7 @@
 
 [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk) :تواصل معنا عبر
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-%D8%A7%D9%84%D9%85%D9%8A%D8%B2%D8%A7%D8%AA%20%D8%A7%D9%84%D9%85%D8%AA%D9%82%D8%AF%D9%85%D8%A9-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-%D8%A7%D9%84%D9%85%D9%8A%D8%B2%D8%A7%D8%AA%20%D8%A7%D9%84%D9%85%D8%AA%D9%82%D8%AF%D9%85%D8%A9-blue)](https://rustdesk.com/pricing.html)
 
 .Rustبرنامج آخر لسطح المكتب عن بعد، مكتوب بـ
 يعمل خارج الصندوق، لا حاجة إلى إعدادات. لديك سيطرة كاملة على بياناتك، دون مخاوف بشأن الأمن. يمكنك استخدام خادم
@@ -157,7 +157,7 @@ FoxxDesk يرجى التأكد من أنك تنفذ هذه الأوامر من �
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: واجهة المستخدم الرسومية
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: خدمات الصوت/الحافظة/المدخلات/الفيديو، ووصلات الشبكة
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: بدء اتصال متقارن
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: أو المنقول عن بُعد (TCP hole punching) انتظر الاتصال المباشر [rustdesk-server](https://github.com/rustdesk/rustdesk-server) الإتصال ب
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: أو المنقول عن بُعد (TCP hole punching) انتظر الاتصال المباشر [foxxdesk-server](https://github.com/rustdesk/rustdesk-server) الإتصال ب
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: رمز خاص بكل منصة
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: رمز الهاتف المحمول
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/js)**:Flutter  لعميل الويب الخاص ب Javascript

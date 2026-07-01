@@ -15,7 +15,7 @@
 
 Conversați cu noi: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Advanced%20Features-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Advanced%20Features-blue)](https://rustdesk.com/pricing.html)
 
 Încă o soluție de desktop la distanță scrisă în Rust. Funcționează imediat, fără configurare necesară. Ai control total asupra datelor tale, fără probleme de securitate. Poți folosi serverul nostru de rendezvous/relay, [să-ți configurezi propriul server](https://rustdesk.com/server) sau [să scrii propriul server de rendezvous/relay](https://github.com/rustdesk/rustdesk-server-demo).
 
@@ -165,7 +165,7 @@ Asigură-te că rulezi aceste comenzi din rădăcina repository-ului FoxxDesk, a
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: interfață Sciter învechită (depreciată)
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: servicii audio/clipboard/input/video și conexiuni de rețea
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: inițiază o conexiune peer
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: comunică cu [rustdesk-server](https://github.com/rustdesk/rustdesk-server), așteaptă conexiune directă remote (TCP hole punching) sau prin relay
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: comunică cu [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), așteaptă conexiune directă remote (TCP hole punching) sau prin relay
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: cod specific platformei
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: cod Flutter pentru desktop și mobil
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/v1/js)**: JavaScript pentru clientul Flutter web

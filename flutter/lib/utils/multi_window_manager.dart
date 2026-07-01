@@ -52,10 +52,10 @@ class MultiWindowCallResult {
 /// Window Manager
 /// mainly use it in `Main Window`
 /// use it in sub window is not recommended
-class FoxxDeskMultiWindowManager {
-  FoxxDeskMultiWindowManager._();
+class RustDeskMultiWindowManager {
+  RustDeskMultiWindowManager._();
 
-  static final instance = FoxxDeskMultiWindowManager._();
+  static final instance = RustDeskMultiWindowManager._();
 
   final Set<int> _inactiveWindows = {};
   final Set<int> _activeWindows = {};
@@ -578,4 +578,4 @@ class FoxxDeskMultiWindowManager {
   }
 }
 
-final rustDeskWinManager = FoxxDeskMultiWindowManager.instance;
+final rustDeskWinManager = RustDeskMultiWindowManager.instance;

@@ -14,12 +14,7 @@ from pathlib import Path
 windows = platform.platform().startswith('Windows')
 osx = platform.platform().startswith(
     'Darwin') or platform.platform().startswith("macOS")
-APP_DISPLAY_NAME = os.environ.get("APP_DISPLAY_NAME", "FoxxDesk")
-APP_SLUG = os.environ.get("APP_SLUG", "foxxdesk")
-APP_EXE = APP_SLUG + (".exe" if windows else "")
-UPSTREAM_SLUG = "foxxdesk"
-
-hbb_name = APP_EXE
+hbb_name = 'foxxdesk' + ('.exe' if windows else '')
 exe_path = 'target/release/' + hbb_name
 if windows:
     win_arch = 'arm64' if platform.machine().lower() in ('arm64', 'aarch64') else 'x64'
@@ -29,6 +24,10 @@ elif osx:
 else:
     flutter_build_dir = 'build/linux/x64/release/bundle/'
 flutter_build_dir_2 = f'flutter/{flutter_build_dir}'
+APP_DISPLAY_NAME = os.environ.get("APP_DISPLAY_NAME", "FoxxDesk")
+APP_SLUG = os.environ.get("APP_SLUG", "foxxdesk")
+APP_EXE = APP_SLUG + (".exe" if windows else "")
+UPSTREAM_SLUG = "foxxdesk"
 skip_cargo = False
 
 
@@ -298,18 +297,18 @@ def generate_control_file(version):
     control_file_path = "../res/DEBIAN/control"
     system2('/bin/rm -rf %s' % control_file_path)
 
-    content = f"""Package: {APP_SLUG}
+    content = """Package: foxxdesk
 Section: net
 Priority: optional
-Version: {version}
-Architecture: {get_deb_arch()}
-Maintainer: FoxxDesk <mateus@mguimaraesn.dev>
+Version: %s
+Architecture: %s
+Maintainer: FoxxDesk / MGN <mateus@mguimaraesn.dev>
 Homepage: https://foxxdesk.mguimaraesn.dev
-Depends: libgtk-3-0t64 | libgtk-3-0, libxcb-randr0, libxdo3 | libxdo4, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2t64 | libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire{get_deb_extra_depends()}
+Depends: libgtk-3-0t64 | libgtk-3-0, libxcb-randr0, libxdo3 | libxdo4, libxfixes3, libxcb-shape0, libxcb-xfixes0, libasound2t64 | libasound2, libsystemd0, curl, libva2, libva-drm2, libva-x11-2, libgstreamer-plugins-base1.0-0, libpam0g, gstreamer1.0-pipewire%s
 Recommends: libayatana-appindicator3-1
-Description: {APP_DISPLAY_NAME} Remote Desktop.
+Description: A remote control software.
 
-"""
+""" % (version, get_deb_arch(), get_deb_extra_depends())
     file = open(control_file_path, "w")
     file.write(content)
     file.close()
@@ -319,8 +318,6 @@ def ffi_bindgen_function_refactor():
     # workaround ffigen
     system2(
         'sed -i "s/ffi.NativeFunction<ffi.Bool Function(DartPort/ffi.NativeFunction<ffi.Uint8 Function(DartPort/g" flutter/lib/generated_bridge.dart')
-    if os.path.exists("scripts/fix_generated_bridge_compat.py"):
-        system2("python3 scripts/fix_generated_bridge_compat.py")
 
 
 def build_flutter_deb(version, features):
@@ -338,7 +335,7 @@ def build_flutter_deb(version, features):
     system2('mkdir -p tmpdeb/usr/share/icons/hicolor/scalable/apps/')
     system2('mkdir -p tmpdeb/usr/share/applications/')
     system2('mkdir -p tmpdeb/usr/share/polkit-1/actions')
-    system2('rm -f tmpdeb/usr/bin/foxxdesk || true')
+    system2('rm tmpdeb/usr/bin/foxxdesk || true')
     system2(
         f'cp -r {flutter_build_dir}/* tmpdeb/usr/share/foxxdesk/')
     system2(
@@ -381,7 +378,7 @@ def build_deb_from_folder(version, binary_folder):
     system2('mkdir -p tmpdeb/usr/share/icons/hicolor/scalable/apps/')
     system2('mkdir -p tmpdeb/usr/share/applications/')
     system2('mkdir -p tmpdeb/usr/share/polkit-1/actions')
-    system2('rm -f tmpdeb/usr/bin/foxxdesk || true')
+    system2('rm tmpdeb/usr/bin/foxxdesk || true')
     system2(
         f'cp -r ../{binary_folder}/* tmpdeb/usr/share/foxxdesk/')
     system2(
@@ -462,15 +459,15 @@ def build_flutter_windows(version, features, skip_portable_pack):
     system2(
         f'python3 ./generate.py -f ../../{flutter_build_dir_2} -o . -e ../../{flutter_build_dir_2}/foxxdesk.exe')
     os.chdir('../..')
-    if os.path.exists('./foxxdesk_portable.exe'):
+    if os.path.exists('./rustdesk_portable.exe'):
         os.replace('./target/release/foxxdesk-portable-packer.exe',
-                   './foxxdesk_portable.exe')
+                   './rustdesk_portable.exe')
     else:
         os.rename('./target/release/foxxdesk-portable-packer.exe',
-                  './foxxdesk_portable.exe')
+                  './rustdesk_portable.exe')
     print(
-        f'output location: {os.path.abspath(os.curdir)}/foxxdesk_portable.exe')
-    os.rename('./foxxdesk_portable.exe', f'./foxxdesk-{version}-install.exe')
+        f'output location: {os.path.abspath(os.curdir)}/rustdesk_portable.exe')
+    os.rename('./rustdesk_portable.exe', f'./foxxdesk-{version}-install.exe')
     print(
         f'output location: {os.path.abspath(os.curdir)}/foxxdesk-{version}-install.exe')
 

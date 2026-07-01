@@ -7,7 +7,7 @@ project(runner LANGUAGES C CXX)
 set(BINARY_NAME "foxxdesk")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "com.foxxdesk.client")
+set(APPLICATION_ID "com.carriez.flutter_hbb")
 
 # Explicitly opt into modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
@@ -185,12 +185,12 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
 endforeach(bundled_library)
 
 # flutter_rust_bridge
-set(FOXXDESK_LIB_BUILD_TYPE $<IF:$<CONFIG:Debug>,debug,release>)
-string(TOLOWER ${CMAKE_BUILD_TYPE} ${FOXXDESK_LIB_BUILD_TYPE})
-message(STATUS "foxxdesk lib build type: ${FOXXDESK_LIB_BUILD_TYPE}")
+set(RUSTDESK_LIB_BUILD_TYPE $<IF:$<CONFIG:Debug>,debug,release>)
+string(TOLOWER ${CMAKE_BUILD_TYPE} ${RUSTDESK_LIB_BUILD_TYPE})
+message(STATUS "foxxdesk lib build type: ${RUSTDESK_LIB_BUILD_TYPE}")
 
-set(FOXXDESK_LIB "../../target/${FOXXDESK_LIB_BUILD_TYPE}/liblibrustdesk.so")
-install(FILES "${FOXXDESK_LIB}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+set(RUSTDESK_LIB "../../target/${RUSTDESK_LIB_BUILD_TYPE}/liblibrustdesk.so")
+install(FILES "${RUSTDESK_LIB}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
 COMPONENT Runtime RENAME librustdesk.so)
 
 # Fully re-copy the assets directory on each build to avoid having stale files

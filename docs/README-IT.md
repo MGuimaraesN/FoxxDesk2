@@ -11,7 +11,7 @@
 
 Chatta con noi su: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Funzionalit%C3%A0%20Avanzate-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Funzionalit%C3%A0%20Avanzate-blue)](https://rustdesk.com/pricing.html)
 
 [![Bounties aperti](https://img.shields.io/endpoint?url=https%3A%2F%2Fconsole.algora.io%2Fapi%2Fshields%2Frustdesk%2Fbounties%3Fstatus%3Dopen)](https://console.algora.io/org/rustdesk/bounties?status=open)
 
@@ -159,7 +159,7 @@ Assicurati di eseguire questi comandi dalla radice del repository FoxxDesk, altr
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: Sciter UI obsoleto (deprecato)
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: servizi audio/appunti/input/video e connessioni di rete
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: avvio di una connessione peer
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: comunica con [rustdesk-server](https://github.com/rustdesk/rustdesk-server), attende la connessione remota diretta (TCP hole punching) oppure indiretta (relayed)
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: comunica con [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), attende la connessione remota diretta (TCP hole punching) oppure indiretta (relayed)
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: codice specifico della piattaforma
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: codice Flutter per desktop e mobile
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/js)**: JavaScript per client web Flutter

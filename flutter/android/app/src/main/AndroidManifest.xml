@@ -77,8 +77,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="foxxdesk" />
-                <!-- Legacy compatibility for links created by FoxxDesk-based deployments. -->
-                <data android:scheme="foxxdesk" />
             </intent-filter>
         </activity>
 

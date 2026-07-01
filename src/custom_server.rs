@@ -124,18 +124,6 @@ mod test {
                 relay: "".to_owned(),
             }
         );
-        // Keep the upstream filename form compatible for existing deployments.
-        assert!(get_custom_server_from_string("foxxdesk.exe").is_err());
-        assert!(get_custom_server_from_string("foxxdesk").is_err());
-        assert_eq!(
-            get_custom_server_from_string("foxxdesk-host=server.example.net.exe").unwrap(),
-            CustomServer {
-                host: "server.example.net".to_owned(),
-                key: "".to_owned(),
-                api: "".to_owned(),
-                relay: "".to_owned(),
-            }
-        );
         assert_eq!(
             get_custom_server_from_string("foxxdesk-host=server.example.net,.exe").unwrap(),
             CustomServer {

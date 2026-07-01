@@ -22,7 +22,7 @@ const GUID GUID_DEVINTERFACE_IDD_DRIVER_DEVICE = \
 
 BOOL g_printMsg = TRUE;
 char g_lastMsg[1024];
-const char* g_msgHeader = "FoxxDeskIdd: ";
+const char* g_msgHeader = "RustDeskIdd: ";
 
 VOID WINAPI
 CreationCallback(

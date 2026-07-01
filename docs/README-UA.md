@@ -11,7 +11,7 @@
 
 Спілкування з нами: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-%D0%A0%D0%BE%D0%B7%D1%88%D0%B8%D1%80%D0%B5%D0%BD%D1%96%20%D0%A4%D1%83%D0%BD%D0%BA%D1%86%D1%96%D1%97-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-%D0%A0%D0%BE%D0%B7%D1%88%D0%B8%D1%80%D0%B5%D0%BD%D1%96%20%D0%A4%D1%83%D0%BD%D0%BA%D1%86%D1%96%D1%97-blue)](https://rustdesk.com/pricing.html)
 
 Ще один застосунок для віддаленого керування стільницею, написаний на Rust. Працює з коробки, не потребує налаштування. Ви повністю контролюєте свої дані, не турбуючись про безпеку. Ви можете використовувати наш сервер ретрансляції, [налаштувати свій власний](https://rustdesk.com/server), або [написати свій власний сервер ретрансляції](https://github.com/rustdesk/rustdesk-server-demo).
 
@@ -157,7 +157,7 @@ target/release/foxxdesk
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: графічний інтерфейс користувача
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: сервіси аудіо/буфера обміну/вводу/відео та мережевих підключень
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: однорангове зʼєднання
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: комунікація з [rustdesk-server](https://github.com/rustdesk/rustdesk-server), очікування віддаленого прямого (обхід TCP NAT) або ретрансльованого зʼєднання
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: комунікація з [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), очікування віддаленого прямого (обхід TCP NAT) або ретрансльованого зʼєднання
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: специфічний для платформи код
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: код Flutter для мобільних пристроїв 
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/js)**: JavaScript для веб клієнта на Flutter

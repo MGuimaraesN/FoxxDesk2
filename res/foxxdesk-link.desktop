@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=FoxxDesk
 NoDisplay=true
-MimeType=x-scheme-handler/foxxdesk;x-scheme-handler/foxxdesk;
+MimeType=x-scheme-handler/foxxdesk;
 TryExec=foxxdesk
 Exec=foxxdesk %u
 Icon=foxxdesk

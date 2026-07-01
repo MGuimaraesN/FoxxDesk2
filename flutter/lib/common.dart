@@ -1777,7 +1777,7 @@ Future<void> saveWindowPosition(WindowType type,
 
   setPreFrame() {
     final pos = bind.getLocalFlutterOption(k: windowFramePrefix + type.name);
-    var lpos = LastWindowPosition.loadFromString(pos ?? '');
+    var lpos = LastWindowPosition.loadFromString(pos);
     if (lpos != null) {
       if (lpos.offsetWidth != null && lpos.offsetHeight != null) {
         position = Offset(lpos.offsetWidth!, lpos.offsetHeight!);
@@ -2008,7 +2008,7 @@ Future<Offset?> _adjustRestoreMainWindowOffset(
 Future<bool> restoreWindowPosition(WindowType type,
     {int? windowId, String? peerId, int? display}) async {
   if (bind
-      .mainGetEnv(key: "DISABLE_FOXXDESK_RESTORE_WINDOW_POSITION")
+      .mainGetEnv(key: "DISABLE_RUSTDESK_RESTORE_WINDOW_POSITION")
       .isNotEmpty) {
     return false;
   }
@@ -2034,7 +2034,7 @@ Future<bool> restoreWindowPosition(WindowType type,
   }
   pos ??= bind.getLocalFlutterOption(k: windowFramePrefix + type.name);
 
-  var lpos = LastWindowPosition.loadFromString(pos ?? '');
+  var lpos = LastWindowPosition.loadFromString(pos);
   if (lpos == null) {
     debugPrint("No window position saved, trying to center the window.");
     switch (type) {
@@ -2235,17 +2235,12 @@ setEnvTerminalAdmin() {
 }
 
 // uri link handler
-bool isSupportedUriLink(String value) {
-  return value.startsWith(bind.mainUriPrefixSync()) ||
-      value.startsWith('rustdesk://');
-}
-
 bool handleUriLink({List<String>? cmdArgs, Uri? uri, String? uriString}) {
   List<String>? args;
   if (cmdArgs != null && cmdArgs.isNotEmpty) {
     args = cmdArgs;
-    // foxxdesk <uri link>; retain rustdesk:// compatibility.
-    if (isSupportedUriLink(args[0])) {
+    // foxxdesk <uri link>
+    if (args[0].startsWith(bind.mainUriPrefixSync())) {
       final uri = Uri.tryParse(args[0]);
       if (uri != null) {
         args = urlLinkToCmdArgs(uri);
@@ -2402,7 +2397,7 @@ List<String>? urlLinkToCmdArgs(Uri uri) {
               'Y';
       if (!allowDeepLinkServerSettings) {
         debugPrint(
-            "Ignore ${uri.scheme}://config because $kOptionAllowDeepLinkServerSettings is not enabled.");
+            "Ignore foxxdesk://config because $kOptionAllowDeepLinkServerSettings is not enabled.");
         // Keep the user-facing error generic; detailed rejection reason is in debug logs.
         // Delay toast to avoid missing overlay during cold-start deeplink handling.
         Timer(Duration(seconds: 1), () {
@@ -2423,7 +2418,7 @@ List<String>? urlLinkToCmdArgs(Uri uri) {
           bind.mainGetBuildinOption(key: kOptionAllowDeepLinkPassword) == 'Y';
       if (!allowDeepLinkPassword) {
         debugPrint(
-            "Ignore ${uri.scheme}://password because $kOptionAllowDeepLinkPassword is not enabled.");
+            "Ignore foxxdesk://password because $kOptionAllowDeepLinkPassword is not enabled.");
         // Keep the user-facing error generic; detailed rejection reason is in debug logs.
         // Delay toast to avoid missing overlay during cold-start deeplink handling.
         Timer(Duration(seconds: 1), () {
@@ -2448,7 +2443,9 @@ List<String>? urlLinkToCmdArgs(Uri uri) {
   } else if (uri.authority.length > 2 &&
       (uri.path.length <= 1 ||
           (uri.path == '/r' || uri.path.startsWith('/r@')))) {
-    // rustdesk://<connect-id> (rustdesk:// remains accepted for compatibility)
+    // foxxdesk://<connect-id>
+    // foxxdesk://<connect-id>/r
+    // foxxdesk://<connect-id>/r@<server>
     command = '--connect';
     id = uri.authority;
     if (uri.path.length > 1) {
@@ -2924,7 +2921,7 @@ class ServerConfig {
     this.key = key?.trim() ?? '';
   }
 
-  /// decode from shared string (from user shared or rustdesk-server generated)
+  /// decode from shared string (from user shared or foxxdesk-server generated)
   /// also see [encode]
   /// throw when decoding failure
   ServerConfig.decode(String msg) {
@@ -3052,7 +3049,7 @@ Future<void> updateSystemWindowTheme() async {
 ///
 /// Note: not found a general solution for rust based AVFoundation bingding.
 /// [AVFoundation] crate has compile error.
-const kMacOSPermChannel = MethodChannel("org.rustdesk.rustdesk/host");
+const kMacOSPermChannel = MethodChannel("org.foxxdesk.foxxdesk/host");
 
 enum PermissionAuthorizeType {
   undetermined,

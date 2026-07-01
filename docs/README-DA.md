@@ -11,7 +11,7 @@
 
 Chat med os: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Avancerede%20Funktioner-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Avancerede%20Funktioner-blue)](https://rustdesk.com/pricing.html)
 
 Endnu en fjernskrivebordssoftware, skrevet i Rust. Fungerer ud af æsken, ingen konfiguration påkrævet. Du har fuld kontrol over dine data uden bekymringer om sikkerhed. Du kan bruge vores rendezvous/relay-server, [opsætte din egen](https://rustdesk.com/server), eller [skrive din egen rendezvous/relay-server](https://github.com/rustdesk/rustdesk- server-demo).
 
@@ -135,7 +135,7 @@ Sørg for, at du kører disse kommandoer fra roden af FoxxDesk-lageret, ellers k
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: GUI
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: lyd/udklipsholder/input/videotjenester og netværksforbindelser
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: starte en peer-forbindelse
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Kommuniker med [rustdesk-server](https://github.com/rustdesk/rustdesk-server), vent på direkte fjernforbindelse (TCP-hulning) eller relæforbindelse
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: Kommuniker med [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), vent på direkte fjernforbindelse (TCP-hulning) eller relæforbindelse
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: Javascript til Flutter webklient
 
 ## Skærmbilleder

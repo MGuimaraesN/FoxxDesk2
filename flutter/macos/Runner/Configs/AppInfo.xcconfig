@@ -8,7 +8,7 @@
 PRODUCT_NAME = FoxxDesk
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.foxxdesk.client
+PRODUCT_BUNDLE_IDENTIFIER = com.carriez.flutterHbb
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 Purslane Ltd. and FoxxDesk/MGN contributors. AGPL-3.0.
+PRODUCT_COPYRIGHT = Copyright © 2025 Purslane Ltd. All rights reserved.

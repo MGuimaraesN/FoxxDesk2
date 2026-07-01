@@ -1,10 +1,10 @@
 Name:       foxxdesk
 Version:    1.4.8
 Release:    0
-Summary:    FoxxDesk Remote Desktop
-License:    AGPL-3.0
+Summary:    RPM package
+License:    GPL-3.0
 URL:        https://rustdesk.com
-Vendor:     FoxxDesk/MGN <mateus@mguimaraesn.dev>
+Vendor:     FoxxDesk / MGN <mateus@mguimaraesn.dev>
 Requires:   gtk3 libxcb libXfixes alsa-lib libva pam gstreamer1-plugins-base
 Recommends: libayatana-appindicator-gtk3 libxdo
 Provides:   libdesktop_drop_plugin.so()(64bit), libdesktop_multi_window_plugin.so()(64bit), libfile_selector_linux_plugin.so()(64bit), libflutter_custom_cursor_plugin.so()(64bit), libflutter_linux_gtk.so()(64bit), libscreen_retriever_plugin.so()(64bit), libtray_manager_plugin.so()(64bit), liburl_launcher_linux_plugin.so()(64bit), libwindow_manager_plugin.so()(64bit), libwindow_size_plugin.so()(64bit), libtexture_rgba_renderer_plugin.so()(64bit)
@@ -12,7 +12,7 @@ Provides:   libdesktop_drop_plugin.so()(64bit), libdesktop_multi_window_plugin.s
 # https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/
 
 %description
-FoxxDesk Remote Desktop, a customized fork based on FoxxDesk.
+The best open-source remote desktop client software, written in Rust.
 
 %prep
 # we have no source, so nothing here
@@ -59,7 +59,7 @@ esac
 cp /usr/share/foxxdesk/files/foxxdesk.service /etc/systemd/system/foxxdesk.service
 cp /usr/share/foxxdesk/files/foxxdesk.desktop /usr/share/applications/
 cp /usr/share/foxxdesk/files/foxxdesk-link.desktop /usr/share/applications/
-ln -sf /usr/share/foxxdesk/foxxdesk /usr/bin/foxxdesk
+ln -sf /usr/share/foxxdesk/rustdesk /usr/bin/foxxdesk
 systemctl daemon-reload
 systemctl enable foxxdesk
 systemctl start foxxdesk

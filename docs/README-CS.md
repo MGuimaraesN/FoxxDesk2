@@ -12,7 +12,7 @@
 Popovídejte si s námi: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-Pokro%C4%8Dil%C3%A9%20Funkce-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-Pokro%C4%8Dil%C3%A9%20Funkce-blue)](https://rustdesk.com/pricing.html)
 
 Zase další software pro přístup k ploše na dálku, naprogramovaný v jazyce Rust. Funguje hned tak, jak je – není třeba žádného nastavování. Svá data máte ve svých rukách, bez obav o zabezpečení. Je možné používat námi poskytovaný propojovací/předávací (relay) server, [vytvořit si svůj vlastní](https://rustdesk.com/server), nebo [si dokonce svůj vlastní naprogramovat](https://github.com/rustdesk/rustdesk-server-demo), budete-li chtít.
 
@@ -141,7 +141,7 @@ Ujistěte se, že tyto příkazy spouštíte z kořenového adresáře FoxxDesk,
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: grafické uživatelské rozhraní
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: služby pro zvuk/schránku/zadávání/video a síťová spojení
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: spouští připojení k protějšku
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: komunikace s [rustdesk-server](https://github.com/rustdesk/rustdesk-server), očekávání vzdálených příméhých („proděrováváním“ TCP) nebo předávaných (relay) spojení
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: komunikace s [foxxdesk-server](https://github.com/rustdesk/rustdesk-server), očekávání vzdálených příméhých („proděrováváním“ TCP) nebo předávaných (relay) spojení
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: zdrojové kódy, specifické pro jednotlivé platformy
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: zdrojové kódy pro použití s aplikačním rámcem (framework) Flutter pro mobilní platformy
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/js)**: Javascript pro Flutter webový klient

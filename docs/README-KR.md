@@ -15,7 +15,7 @@
 
 우리와 채팅: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk) | [YouTube](https://www.youtube.com/@rustdesk)
 
-[![FoxxDesk Server Pro](https://img.shields.io/badge/RustDesk%20Server%20Pro-%EA%B3%A0%EA%B8%89%20%EA%B8%B0%EB%8A%A5-blue)](https://rustdesk.com/pricing.html)
+[![FoxxDesk Server Pro](https://img.shields.io/badge/FoxxDesk%20Server%20Pro-%EA%B3%A0%EA%B8%89%20%EA%B8%B0%EB%8A%A5-blue)](https://rustdesk.com/pricing.html)
 
 또 하나의 원격 데스크톱 솔루션으로, Rust로 작성되었습니다. 별도의 설정 없이 바로 사용할 수 있습니다. 데이터에 대한 완전한 통제권을 가지며 보안에 대한 걱정이 없습니다. 저희 랑데부/릴레이 서버를 사용하거나, [직접 설정](https://rustdesk.com/server)하거나, [자신만의 랑데부/릴레이 서버를 작성](https://github.com/rustdesk/rustdesk-server-demo)할 수 있습니다.
 
@@ -165,7 +165,7 @@ FoxxDesk 리포지토리의 루트에서 이러한 명령을 실행하고 있는
 - **[src/ui](https://github.com/rustdesk/rustdesk/tree/master/src/ui)**: 더 이상 사용되지 않는 Sciter UI (지원 중단)
 - **[src/server](https://github.com/rustdesk/rustdesk/tree/master/src/server)**: 오디오/클립보드/입력/비디오 서비스 및 네트워크 연결
 - **[src/client.rs](https://github.com/rustdesk/rustdesk/tree/master/src/client.rs)**: 피어 연결 시작
-- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: [rustdesk-server](https://github.com/rustdesk/rustdesk-server)와 통신, 원격 다이렉트 (TCP 홀 펀칭) 또는 릴레이 연결 대기
+- **[src/rendezvous_mediator.rs](https://github.com/rustdesk/rustdesk/tree/master/src/rendezvous_mediator.rs)**: [foxxdesk-server](https://github.com/rustdesk/rustdesk-server)와 통신, 원격 다이렉트 (TCP 홀 펀칭) 또는 릴레이 연결 대기
 - **[src/platform](https://github.com/rustdesk/rustdesk/tree/master/src/platform)**: 플랫폼별 코드
 - **[flutter](https://github.com/rustdesk/rustdesk/tree/master/flutter)**: 데스크톱 및 모바일용 Flutter 코드
 - **[flutter/web/js](https://github.com/rustdesk/rustdesk/tree/master/flutter/web/v1/js)**: Flutter 웹 클라이언트용 JavaScript

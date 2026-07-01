@@ -1,4 +1,4 @@
-name: FoxxDesk Flutter CI
+name: Full Flutter CI
 
 on:
   workflow_dispatch:

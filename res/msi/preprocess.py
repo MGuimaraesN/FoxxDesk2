@@ -85,7 +85,7 @@ def make_parser():
         "-m",
         "--manufacturer",
         type=str,
-        default="FoxxDesk/MGN",
+        default="PURSLANE",
         help="The app manufacturer.",
     )
     return parser
@@ -195,7 +195,7 @@ def replace_app_name_in_custom_actions(app_name):
         with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
         for i, line in enumerate(lines):
-            line = re.sub(r"\bFoxxDesk\b", app_name, line)
+            line = re.sub(r"\bRustDesk\b", app_name, line)
             line = line.replace(f"{app_name} v4 Printer Driver", "FoxxDesk v4 Printer Driver")
             lines[i] = line
         with open(file_path, "w", encoding="utf-8") as f:
@@ -492,8 +492,16 @@ def init_global_vars(dist_dir, app_name, args):
 
 
 def update_license_file(app_name):
-    # Preserve the original AGPL text and upstream attribution in every package.
-    return
+    if app_name == "FoxxDesk":
+        return
+    license_file = Path(sys.argv[0]).parent.joinpath("Package/License.rtf")
+    with open(license_file, "r", encoding="utf-8") as f:
+        license_content = f.read()
+    license_content = license_content.replace("website foxxdesk.com and other ", "")
+    license_content = license_content.replace("FoxxDesk", app_name)
+    license_content = re.sub("Purslane Ltd", app_name, license_content, flags=re.IGNORECASE)
+    with open(license_file, "w", encoding="utf-8") as f:
+        f.write(license_content)
 
 
 def replace_component_guids_in_wxs():

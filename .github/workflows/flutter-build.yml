@@ -1,4 +1,4 @@
-name: FoxxDesk reusable Flutter build
+name: Build the flutter version of the FoxxDesk
 
 on:
   workflow_call:
@@ -8,7 +8,7 @@ on:
         default: true
       upload-tag:
         type: string
-        default: "foxxdesk-nightly"
+        default: "nightly"
 
 # NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
 # variables from this workflow!
@@ -177,9 +177,9 @@ jobs:
           }
 
       # https://github.com/flutter/flutter/issues/155685
-      # x64 only: arm64 uses the stock native arm64 Windows engine, and the rustdesk/engine
+      # x64 only: arm64 uses the stock native arm64 Windows engine, and the foxxdesk/engine
       # windows-x64-release.zip is built for the 3.24-era x64 engine (matches FLUTTER_VERSION).
-      - name: Replace engine with rustdesk custom flutter engine
+      - name: Replace engine with foxxdesk custom flutter engine
         if: ${{ matrix.job.arch == 'x86_64' }}
         run: |
           flutter doctor -v
@@ -251,21 +251,21 @@ jobs:
         shell: bash
         run: echo "SODIUM_LIB_DIR=$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/lib" >> "$GITHUB_ENV"
 
-      - name: Build FoxxDesk
+      - name: Build foxxdesk
         run: |
           # Windows: build FoxxDesk
           # --hwcodec is shared by all Windows targets; per-target extras (e.g. --vram) come from the matrix
           python3 .\build.py --portable --flutter --skip-portable-pack --hwcodec ${{ matrix.job.build-args }}
           mv ./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release ./foxxdesk
 
-          # Download upstream usbmmidd_v2.zip and extract it to ./foxxdesk
+          # Download usbmmidd_v2.zip and extract it to ./foxxdesk
           Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
           Expand-Archive usbmmidd_v2.zip -DestinationPath .
           Remove-Item -Path usbmmidd_v2\Win32 -Recurse
           Remove-Item -Path "usbmmidd_v2\deviceinstaller64.exe", "usbmmidd_v2\deviceinstaller.exe", "usbmmidd_v2\usbmmidd.bat"
           mv -Force .\usbmmidd_v2 ./foxxdesk
 
-          # Download upstream printer driver files and extract them to ./foxxdesk
+          # Download printer driver files and extract them to ./foxxdesk
           try {
             Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/rustdesk_printer_driver_v4-1.4.zip -OutFile rustdesk_printer_driver_v4-1.4.zip
             Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/printer_driver_adapter.zip -OutFile printer_driver_adapter.zip
@@ -322,7 +322,7 @@ jobs:
           name: foxxdesk-unsigned-windows-${{ matrix.job.arch }}
           path: foxxdesk
 
-      - name: Sign FoxxDesk files
+      - name: Sign foxxdesk files
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
         shell: bash
         run: |
@@ -336,7 +336,7 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../foxxdesk/ -o . -e ../../foxxdesk/foxxdesk.exe
+          python3 ./generate.py -f ../../foxxdesk/ -o . -e ../../rustdesk/rustdesk.exe
           popd
           mkdir -p ./SignOutput
           mv ./target/release/foxxdesk-portable-packer.exe ./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
@@ -351,7 +351,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../foxxdesk --app-name FoxxDesk --manufacturer "FoxxDesk/MGN"
+          python preprocess.py --arp -d ../../foxxdesk
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
@@ -359,7 +359,7 @@ jobs:
           mv $msi.FullName ../../SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
           sha256sum ../../SignOutput/foxxdesk-*.msi
 
-      - name: Sign FoxxDesk self-extracted file
+      - name: Sign foxxdesk self-extracted file
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
         shell: bash
         run: |
@@ -450,7 +450,7 @@ jobs:
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
         shell: bash
 
-      - name: Build FoxxDesk
+      - name: Build foxxdesk
         id: build
         shell: bash
         run: |
@@ -494,7 +494,7 @@ jobs:
           name: foxxdesk-unsigned-windows-${{ matrix.job.arch }}
           path: Release
 
-      - name: Sign FoxxDesk files
+      - name: Sign foxxdesk files
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
         shell: bash
         run: |
@@ -512,7 +512,7 @@ jobs:
           mkdir -p ./SignOutput
           mv ./target/release/foxxdesk-portable-packer.exe ./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe
 
-      - name: Sign FoxxDesk self-extracted file
+      - name: Sign foxxdesk self-extracted file
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
         shell: bash
         run: |
@@ -529,7 +529,7 @@ jobs:
 
   build-foxxdesk-ios:
     if: ${{ inputs.upload-artifact }}
-    name: build FoxxDesk ios ipa
+    name: build foxxdesk ios ipa
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
     strategy:
@@ -611,7 +611,7 @@ jobs:
           name: bridge-artifact
           path: ./
 
-      - name: Build FoxxDesk lib
+      - name: Build foxxdesk lib
         run: |
           rustup target add ${{ matrix.job.target }}
           cargo build --locked --features flutter,hwcodec --release --target aarch64-apple-ios --lib
@@ -622,7 +622,7 @@ jobs:
           name: liblibrustdesk.a
           path: target/aarch64-apple-ios/release/liblibrustdesk.a
 
-      - name: Build FoxxDesk
+      - name: Build foxxdesk
         shell: bash
         run: |
           pushd flutter
@@ -805,7 +805,7 @@ jobs:
           cargo -V
           rustc -V
 
-      - name: Build FoxxDesk
+      - name: Build foxxdesk
         run: |
           if [ "${{ matrix.job.target }}" = "aarch64-apple-darwin" ]; then
             MIN_MACOS_VERSION="12.3"
@@ -841,7 +841,7 @@ jobs:
           # Unlock keychain
           security default-keychain -s foxxdesk.keychain
           security unlock-keychain -p ${{ secrets.MACOS_P12_PASSWORD }} foxxdesk.keychain
-          # Start signing the FoxxDesk app and DMG.
+          # start sign the foxxdesk.app and dmg
           rm -rf *.dmg || true
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict ./flutter/build/macos/Build/Products/Release/FoxxDesk.app -vvv
           create-dmg --icon "FoxxDesk.app" 200 190 --hide-extension "FoxxDesk.app" --window-size 800 400 --app-drop-link 600 185 foxxdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/FoxxDesk.app
@@ -849,7 +849,7 @@ jobs:
           # notarize the foxxdesk-${{ env.VERSION }}.dmg
           rcodesign notary-submit --api-key-path ${{ github.workspace }}/foxxdesk.json  --staple foxxdesk-${{ env.VERSION }}.dmg
 
-      - name: Rename FoxxDesk
+      - name: Rename foxxdesk
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           for name in foxxdesk*??.dmg; do
@@ -910,7 +910,7 @@ jobs:
 
   build-foxxdesk-android:
     needs: [generate-bridge]
-    name: build FoxxDesk android apk ${{ matrix.job.target }}
+    name: build foxxdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -1065,7 +1065,7 @@ jobs:
           prefix-key: foxxdesk-lib-cache-android # TODO: drop '-android' part after caches are invalidated
           key: ${{ matrix.job.target }}
 
-      - name: Build FoxxDesk lib
+      - name: Build foxxdesk lib
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
@@ -1095,13 +1095,13 @@ jobs:
             ;;
           esac
 
-      - name: Upload Foxxdesk library to Artifacts
+      - name: Upload Rustdesk library to Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: librustdesk.so.${{ matrix.job.target }}
           path: ./target/${{ matrix.job.target }}/release/liblibrustdesk.so
 
-      - name: Build FoxxDesk
+      - name: Build foxxdesk
         shell: bash
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
@@ -1202,7 +1202,7 @@ jobs:
 
   build-foxxdesk-android-universal:
     needs: [build-foxxdesk-android]
-    name: build FoxxDesk android universal apk
+    name: build foxxdesk android universal apk
     if: ${{ inputs.upload-artifact }}
     runs-on: ubuntu-24.04
     env:
@@ -1285,32 +1285,32 @@ jobs:
           name: bridge-artifact
           path: ./
 
-      - name: Download Foxxdesk library from Artifacts
+      - name: Download Rustdesk library from Artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: librustdesk.so.aarch64-linux-android
           path: ./flutter/android/app/src/main/jniLibs/arm64-v8a
 
-      - name: Download Foxxdesk library from Artifacts
+      - name: Download Rustdesk library from Artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: librustdesk.so.armv7-linux-androideabi
           path: ./flutter/android/app/src/main/jniLibs/armeabi-v7a
 
-      - name: Download Foxxdesk library from Artifacts
+      - name: Download Rustdesk library from Artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: librustdesk.so.x86_64-linux-android
           path: ./flutter/android/app/src/main/jniLibs/x86_64
 
-      - name: Download Foxxdesk library from Artifacts
+      - name: Download Rustdesk library from Artifacts
         if: ${{ env.reltype == 'debug' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: librustdesk.so.i686-linux-android
           path: ./flutter/android/app/src/main/jniLibs/x86
 
-      - name: Build FoxxDesk
+      - name: Build foxxdesk
         shell: bash
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
@@ -1386,7 +1386,7 @@ jobs:
 
   build-foxxdesk-linux:
     needs: [generate-bridge]
-    name: build FoxxDesk linux ${{ matrix.job.target }}
+    name: build foxxdesk linux ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.on }}
     strategy:
       fail-fast: false
@@ -1505,7 +1505,7 @@ jobs:
           path: ./
 
       - uses: rustdesk-org/run-on-arch-action@d3fcfbb632b84cf7f6bc772bfaaa2c2f4f8789a8 # no release tag; commit 2026-05-26
-        name: Build FoxxDesk
+        name: Build foxxdesk
         id: vcpkg
         if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
         with:
@@ -1744,7 +1744,7 @@ jobs:
               arch: armv7,
               target: armv7-unknown-linux-gnueabihf,
               on: ubuntu-22.04-arm,
-              distro: ubuntu18.04-rustdesk,
+              distro: ubuntu18.04-foxxdesk,
               deb_arch: armhf,
               sciter_arch: arm32,
               vcpkg-triplet: arm-linux,
@@ -1789,7 +1789,7 @@ jobs:
           echo "RUST_TOOLCHAIN_VERSION=$RUST_TOOLCHAIN_VERSION" >> $GITHUB_ENV
 
       - uses: rustdesk-org/run-on-arch-action@d3fcfbb632b84cf7f6bc772bfaaa2c2f4f8789a8 # no release tag; commit 2026-05-26
-        name: Build FoxxDesk sciter binary for ${{ matrix.job.arch }}
+        name: Build foxxdesk sciter binary for ${{ matrix.job.arch }}
         id: vcpkg
         with:
           arch: ${{ matrix.job.arch }}
@@ -1913,7 +1913,7 @@ jobs:
               exit 1
             fi
             head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
-            # build FoxxDesk
+            # build foxxdesk
             python3 ./res/inline-sciter.py
             export CARGO_INCREMENTAL=0
             cargo build --locked --features inline${{ matrix.job.extra_features }} --release --bins --jobs 1
@@ -1924,7 +1924,7 @@ jobs:
             export DEB_ARCH=${{ matrix.job.deb_arch }}
             ./build.py --package ./Release
 
-      - name: Rename FoxxDesk
+      - name: Rename foxxdesk
         shell: bash
         run: |
           for name in foxxdesk*??.deb; do
@@ -2049,7 +2049,7 @@ jobs:
           mv foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb flatpak/foxxdesk.deb
 
       - uses: rustdesk-org/run-on-arch-action@d3fcfbb632b84cf7f6bc772bfaaa2c2f4f8789a8 # no release tag; commit 2026-05-26
-        name: Build FoxxDesk flatpak package for ${{ matrix.job.arch }}
+        name: Build foxxdesk flatpak package for ${{ matrix.job.arch }}
         id: flatpak
         with:
           arch: ${{ matrix.job.arch }}

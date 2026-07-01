@@ -99,7 +99,7 @@ ctrlc = "3.2"
 # arboard = { version = "3.4", features = ["wayland-data-control"] }
 arboard = { git = "https://github.com/rustdesk-org/arboard", features = ["wayland-data-control"] }
 clipboard-master = { git = "https://github.com/rustdesk-org/clipboard-master" }
-portable-pty = { git = "https://github.com/rustdesk-org/wezterm", branch = "rustdesk/pty_based_0.8.1", package = "portable-pty" }
+portable-pty = { git = "https://github.com/rustdesk-org/wezterm", branch = "foxxdesk/pty_based_0.8.1", package = "portable-pty" }
 
 system_shutdown = "4.0"
 qrcode-generator = "4.1"
@@ -213,7 +213,7 @@ exclude = ["vdi/host", "examples/custom_plugin"]
 libxdo-sys = { path = "libs/libxdo-sys-stub" }
 
 [package.metadata.winres]
-LegalCopyright = "Copyright © 2025 Purslane Ltd. and FoxxDesk/MGN contributors. AGPL-3.0."
+LegalCopyright = "Copyright © 2025 Purslane Ltd. All rights reserved."
 ProductName = "FoxxDesk"
 FileDescription = "FoxxDesk Remote Desktop"
 OriginalFilename = "foxxdesk.exe"
@@ -233,7 +233,7 @@ docopt = "1.1"
 
 [package.metadata.bundle]
 name = "FoxxDesk"
-identifier = "com.foxxdesk.client"
+identifier = "com.carriez.foxxdesk"
 icon = ["res/32x32.png", "res/128x128.png", "res/128x128@2x.png"]
 osx_minimum_system_version = "10.14"
 
