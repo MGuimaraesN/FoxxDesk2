@@ -100,11 +100,46 @@ if __name__ == '__main__':
         options.executable = 'foxxdesk.exe'
     if not options.executable.startswith(folder):
         options.executable = folder + '/' + options.executable
-    exe: str = os.path.abspath(options.executable)
-    if not exe.startswith(os.path.abspath(folder)):
+    folder_abs = os.path.abspath(folder)
+    exe_abs = os.path.abspath(options.executable)
+
+    # GitHub Actions on Windows may mix /d/a/... and D:\a\... paths.
+    # Use normalized commonpath instead of a raw string startswith check.
+    try:
+        folder_norm = os.path.normcase(os.path.normpath(folder_abs))
+        exe_norm = os.path.normcase(os.path.normpath(exe_abs))
+        common = os.path.commonpath([folder_norm, exe_norm])
+    except ValueError:
+        common = ""
+
+    if common != folder_norm:
         print("The executable must locate in source folder")
+        print(f"  source folder: {folder_abs}")
+        print(f"  executable:    {exe_abs}")
         exit(-1)
-    exe = '.' + exe[len(os.path.abspath(folder)):]
+
+    if not os.path.isfile(exe_abs):
+        # Fallback para builds parcialmente rebrandados ou artefatos upstream.
+        # Não mascara erro: se nenhum executável existir, falha com lista clara.
+        fallback_names = ["foxxdesk.exe", "FoxxDesk.exe", "rustdesk.exe", "RustDesk.exe"]
+        for name in fallback_names:
+            candidate = os.path.join(folder_abs, name)
+            if os.path.isfile(candidate):
+                print(f"Executable not found at {exe_abs}; using {candidate}")
+                exe_abs = candidate
+                break
+
+    if not os.path.isfile(exe_abs):
+        print(f"Executable not found: {exe_abs}")
+        if os.path.isdir(folder_abs):
+            print("Source folder contents:")
+            for item in sorted(os.listdir(folder_abs)):
+                print(f"  - {item}")
+        else:
+            print(f"Source folder does not exist: {folder_abs}")
+        exit(-1)
+
+    exe = './' + os.path.relpath(exe_abs, folder_abs).replace(os.sep, '/')
     print("Executable path: " + exe)
     print("Compression level: " + str(options.level))
     md5_table = generate_md5_table(folder, options.level)

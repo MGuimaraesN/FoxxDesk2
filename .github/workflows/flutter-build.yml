@@ -507,7 +507,7 @@ jobs:
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../Release/ -o . -e ../../Release/foxxdesk.exe
+          python3 ./generate.py -f ../../Release/ -o . -e foxxdesk.exe
           popd
           mkdir -p ./SignOutput
           mv ./target/release/foxxdesk-portable-packer.exe ./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe
