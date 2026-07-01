@@ -28,6 +28,7 @@ APP_DISPLAY_NAME = os.environ.get("APP_DISPLAY_NAME", "FoxxDesk")
 APP_SLUG = os.environ.get("APP_SLUG", "foxxdesk")
 APP_EXE = APP_SLUG + (".exe" if windows else "")
 UPSTREAM_SLUG = "foxxdesk"
+FOXXDESK_CUSTOM_EXE_PREFIX = os.environ.get("FOXXDESK_CUSTOM_EXE_PREFIX", "foxxdesk-host=foxxdesk.mguimaraesn.dev,key=6WbpsDtYMwUca74qNvNaBfV4pUIGzyXnX1Q8V8fZ8YA=,relay=foxxdesk.mguimaraesn.dev,")
 skip_cargo = False
 
 

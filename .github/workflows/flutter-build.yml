@@ -51,6 +51,10 @@ env:
   MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"
+  FOXXDESK_DEFAULT_SERVER: "foxxdesk.mguimaraesn.dev"
+  FOXXDESK_DEFAULT_RELAY: "foxxdesk.mguimaraesn.dev"
+  FOXXDESK_DEFAULT_KEY: "6WbpsDtYMwUca74qNvNaBfV4pUIGzyXnX1Q8V8fZ8YA="
+  FOXXDESK_CUSTOM_EXE_PREFIX: "foxxdesk-host=foxxdesk.mguimaraesn.dev,key=6WbpsDtYMwUca74qNvNaBfV4pUIGzyXnX1Q8V8fZ8YA=,relay=foxxdesk.mguimaraesn.dev,"
 
 jobs:
   generate-bridge:
@@ -340,6 +344,7 @@ jobs:
           popd
           mkdir -p ./SignOutput
           mv ./target/release/foxxdesk-portable-packer.exe ./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          cp "./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe" "./SignOutput/${{ env.FOXXDESK_CUSTOM_EXE_PREFIX }}-${{ env.VERSION }}-${{ matrix.job.arch }}.exe"
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
@@ -511,6 +516,7 @@ jobs:
           popd
           mkdir -p ./SignOutput
           mv ./target/release/foxxdesk-portable-packer.exe ./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe
+          cp "./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe" "./SignOutput/${{ env.FOXXDESK_CUSTOM_EXE_PREFIX }}-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe"
 
       - name: Sign foxxdesk self-extracted file
         if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'

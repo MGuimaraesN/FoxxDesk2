@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v18.py
+apply_foxxdesk_rebrand_all_files_no_zip_v19.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v18-ci-executable-and-msi-duplicate-guard-no-zip-2026-07-01"
+SCRIPT_VERSION = "v19-embedded-server-relay-key-and-prefixed-output-no-zip-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -709,15 +709,92 @@ def patch_build_py(rel: str, text: str, args: argparse.Namespace) -> str:
 
 
 def patch_config_rs(rel: str, text: str, args: argparse.Namespace) -> str:
+    """Prefixa defaults reais de servidor/relay/key no binário.
+
+    V19 não depende mais de passar --server/--relay/--key manualmente. Se o
+    usuário não informar nada, usa os valores DEFAULT_* do script. Isso garante
+    que o build saia apontando para o servidor FoxxDesk mesmo em CI.
+    """
     if rel != "libs/hbb_common/src/config.rs":
         return text
-    if args.server:
-        text = re.sub(r'RwLock::new\("[^"]*"\.to_owned\(\)\)', f'RwLock::new("{args.server}".to_owned())', text, count=1)
-        text = re.sub(r'pub const RENDEZVOUS_SERVERS: &\[&str\] = &\["[^"]*"\];', f'pub const RENDEZVOUS_SERVERS: &[&str] = &["{args.server}"];', text, count=1)
-    if args.key:
-        text = re.sub(r'pub const RS_PUB_KEY: &str = "[^"]*";', f'pub const RS_PUB_KEY: &str = "{args.key}";', text, count=1)
-    return text
 
+    server = args.server or DEFAULT_SERVER
+    relay = args.relay or server
+    key = args.key or DEFAULT_KEY
+
+    # Constantes explícitas para evitar espalhar strings mágicas e para facilitar
+    # conferência futura no código compilado.
+    if "pub const DEFAULT_RENDEZVOUS_SERVER:" not in text:
+        marker = "type KeyPair = (Vec<u8>, Vec<u8>);\n"
+        insert = (
+            f'\npub const DEFAULT_RENDEZVOUS_SERVER: &str = "{server}";\n'
+            f'pub const DEFAULT_RELAY_SERVER: &str = "{relay}";\n'
+            f'pub const DEFAULT_CUSTOM_CLIENT_KEY: &str = "{key}";\n'
+        )
+        if marker in text:
+            text = text.replace(marker, marker + insert, 1)
+    text = re.sub(
+        r'pub const DEFAULT_RENDEZVOUS_SERVER: &str = "[^"]*";',
+        f'pub const DEFAULT_RENDEZVOUS_SERVER: &str = "{server}";',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub const DEFAULT_RELAY_SERVER: &str = "[^"]*";',
+        f'pub const DEFAULT_RELAY_SERVER: &str = "{relay}";',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub const DEFAULT_CUSTOM_CLIENT_KEY: &str = "[^"]*";',
+        f'pub const DEFAULT_CUSTOM_CLIENT_KEY: &str = "{key}";',
+        text,
+        count=1,
+    )
+
+    # ID server / rendezvous compilado.
+    text = re.sub(
+        r'pub static ref PROD_RENDEZVOUS_SERVER: RwLock<String> = RwLock::new\("[^"]*"\.to_owned\(\)\);',
+        'pub static ref PROD_RENDEZVOUS_SERVER: RwLock<String> = RwLock::new(DEFAULT_RENDEZVOUS_SERVER.to_owned());',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub const RENDEZVOUS_SERVERS: &\[&str\] = &\["[^"]*"\];',
+        'pub const RENDEZVOUS_SERVERS: &[&str] = &[DEFAULT_RENDEZVOUS_SERVER];',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub const RS_PUB_KEY: &str = "[^"]*";',
+        'pub const RS_PUB_KEY: &str = DEFAULT_CUSTOM_CLIENT_KEY;',
+        text,
+        count=1,
+    )
+
+    # Defaults que aparecem em Settings > Network e são retornados por
+    # Config::get_options(). Isso faz o relay e a key virem prefixados por padrão,
+    # sem depender do usuário salvar configuração local.
+    default_settings_block = """pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([
+        ("custom-rendezvous-server".to_string(), DEFAULT_RENDEZVOUS_SERVER.to_string()),
+        ("relay-server".to_string(), DEFAULT_RELAY_SERVER.to_string()),
+        ("key".to_string(), DEFAULT_CUSTOM_CLIENT_KEY.to_string()),
+    ]));"""
+    text = re.sub(
+        r'pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default\(\);',
+        default_settings_block,
+        text,
+        count=1,
+    )
+    # Se uma versão anterior já aplicou o bloco, atualiza para o formato v19.
+    text = re.sub(
+        r'pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new\(HashMap::from\(\[.*?\]\)\);',
+        default_settings_block,
+        text,
+        count=1,
+        flags=re.S,
+    )
+    return text
 
 def patch_server_defaults(rel: str, text: str, args: argparse.Namespace) -> str:
     if rel != "FOXXDESK_SERVER_DEFAULTS.md":
@@ -728,6 +805,77 @@ def patch_server_defaults(rel: str, text: str, args: argparse.Namespace) -> str:
     text = re.sub(r'(?m)^- HBBS / ID server: `[^`]*`$', f'- HBBS / ID server: `{server}`', text)
     text = re.sub(r'(?m)^- HBBR / Relay server: `[^`]*`$', f'- HBBR / Relay server: `{relay}`', text)
     text = re.sub(r'(?m)^- Public key: `[^`]*`$', f'- Public key: `{key}`', text)
+    return text
+
+
+
+def make_prefixed_exe_base(args: argparse.Namespace) -> str:
+    server = args.server or DEFAULT_SERVER
+    relay = args.relay or server
+    key = args.key or DEFAULT_KEY
+    # Trailing comma antes do .exe protege contra Windows adicionar " (1)".
+    # O parser de src/custom_server.rs ignora o pedaço vazio depois da vírgula.
+    return f"foxxdesk-host={server},key={key},relay={relay},"
+
+
+def patch_prefixed_server_build_outputs(rel: str, text: str, args: argparse.Namespace) -> str:
+    """Garante artefatos Windows com nome prefixado host/key/relay.
+
+    Isso é complementar aos defaults compilados em config.rs. O executável normal
+    continua existindo, mas o Release também passa a publicar uma cópia prefixada
+    compatível com src/custom_server.rs.
+    """
+    prefix = make_prefixed_exe_base(args)
+
+    if rel == ".github/workflows/flutter-build.yml":
+        # Deixa os valores visíveis no workflow para debug e para os comandos de
+        # cópia; não é segredo, é chave pública do hbbs.
+        if "FOXXDESK_CUSTOM_EXE_PREFIX:" not in text:
+            env_marker = '  SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"\n'
+            env_insert = (
+                f'  FOXXDESK_DEFAULT_SERVER: "{args.server or DEFAULT_SERVER}"\n'
+                f'  FOXXDESK_DEFAULT_RELAY: "{args.relay or (args.server or DEFAULT_SERVER)}"\n'
+                f'  FOXXDESK_DEFAULT_KEY: "{args.key or DEFAULT_KEY}"\n'
+                f'  FOXXDESK_CUSTOM_EXE_PREFIX: "{prefix}"\n'
+            )
+            if env_marker in text:
+                text = text.replace(env_marker, env_marker + env_insert, 1)
+
+        flutter_mv = '          mv ./target/release/foxxdesk-portable-packer.exe ./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe\n'
+        flutter_cp = '          cp "./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe" "./SignOutput/${{ env.FOXXDESK_CUSTOM_EXE_PREFIX }}-${{ env.VERSION }}-${{ matrix.job.arch }}.exe"\n'
+        if flutter_mv in text and flutter_cp not in text:
+            text = text.replace(flutter_mv, flutter_mv + flutter_cp, 1)
+
+        sciter_mv = '          mv ./target/release/foxxdesk-portable-packer.exe ./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe\n'
+        sciter_cp = '          cp "./SignOutput/foxxdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe" "./SignOutput/${{ env.FOXXDESK_CUSTOM_EXE_PREFIX }}-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe"\n'
+        if sciter_mv in text and sciter_cp not in text:
+            text = text.replace(sciter_mv, sciter_mv + sciter_cp, 1)
+        return text
+
+    if rel == "build.py":
+        # Local build: além do instalador normal, cria uma cópia prefixada.
+        if "FOXXDESK_CUSTOM_EXE_PREFIX" not in text:
+            top_marker = 'UPSTREAM_SLUG = "foxxdesk"\n'
+            top_insert = f'FOXXDESK_CUSTOM_EXE_PREFIX = os.environ.get("FOXXDESK_CUSTOM_EXE_PREFIX", "{prefix}")\n'
+            if top_marker in text:
+                text = text.replace(top_marker, top_marker + top_insert, 1)
+
+        old = """    os.rename('./foxxdesk_portable.exe', f'./foxxdesk-{version}-install.exe')
+    print(
+        f'output location: {os.path.abspath(os.curdir)}/foxxdesk-{version}-install.exe')
+"""
+        new = """    normal_installer = f'./foxxdesk-{version}-install.exe'
+    os.rename('./foxxdesk_portable.exe', normal_installer)
+    print(f'output location: {os.path.abspath(os.curdir)}/{normal_installer.lstrip("./")}')
+    if FOXXDESK_CUSTOM_EXE_PREFIX:
+        prefixed_installer = f'./{FOXXDESK_CUSTOM_EXE_PREFIX}-{version}-install.exe'
+        shutil.copy2(normal_installer, prefixed_installer)
+        print(f'output location: {os.path.abspath(os.curdir)}/{prefixed_installer.lstrip("./")}')
+"""
+        if old in text and new not in text:
+            text = text.replace(old, new, 1)
+        return text
+
     return text
 
 
@@ -1141,6 +1289,7 @@ def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:
     text = patch_build_py_bridge_compat(rel, text)
     text = patch_config_rs(rel, text, args)
     text = patch_server_defaults(rel, text, args)
+    text = patch_prefixed_server_build_outputs(rel, text, args)
     text = patch_package_scripts(rel, text, args)
     text = patch_workflow_build_internals(rel, text)
     text = patch_upstream_dependency_branches(rel, text)
@@ -1365,21 +1514,21 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v18.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v19.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
         f"- Perfil: `{args.profile}`",
-        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável completo + MSI duplicate guard v18 completo + MSI duplicate guard v18`",
+        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável completo + MSI duplicate guard v18 + embedded server/relay/key defaults + prefixed Windows output v19`",
         "- Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.",
         "",
         "## Valores dinâmicos",
         "",
-        f"- server: `{redact_value(args.server)}`",
-        f"- relay: `{redact_value(args.relay)}`",
-        f"- key: `{redact_value(args.key, 'key')}`",
+        f"- server: `{redact_value(args.server or DEFAULT_SERVER)}`",
+        f"- relay: `{redact_value(args.relay or (args.server or DEFAULT_SERVER))}`",
+        f"- key: `{redact_value(args.key or DEFAULT_KEY, 'key')}`",
         f"- maintainer-email: `{redact_value(args.maintainer_email)}`",
-        f"- homepage: `{redact_value(normalize_homepage(args.homepage or args.server))}`",
+        f"- homepage: `{redact_value(normalize_homepage(args.homepage or args.server or DEFAULT_SERVER))}`",
         "",
         "## Resumo",
         "",
@@ -1438,9 +1587,9 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--dry-run", action="store_true", help="Mostra o que seria alterado sem salvar arquivos do projeto, exceto relatório.")
     mode.add_argument("--apply", action="store_true", help="Aplica as alterações.")
     p.add_argument("--yes", action="store_true", help="Confirma automaticamente o modo --apply.")
-    p.add_argument("--server", default=None, help="Domínio/IP do servidor FoxxDesk; usado em config.rs e FOXXDESK_SERVER_DEFAULTS.md.")
-    p.add_argument("--relay", default=None, help="Domínio/IP do relay FoxxDesk; usado em FOXXDESK_SERVER_DEFAULTS.md.")
-    p.add_argument("--key", default=None, help="Chave pública; usada em config.rs e FOXXDESK_SERVER_DEFAULTS.md.")
+    p.add_argument("--server", default=None, help="Domínio/IP do servidor FoxxDesk. Se omitido, usa o DEFAULT_SERVER embutido na v19 e grava em config.rs/workflow.")
+    p.add_argument("--relay", default=None, help="Domínio/IP do relay FoxxDesk. Se omitido, usa o mesmo valor do server e grava em config.rs/workflow.")
+    p.add_argument("--key", default=None, help="Chave pública do hbbs. Se omitida, usa DEFAULT_KEY e grava em config.rs/workflow.")
     p.add_argument("--maintainer-email", default=None, help="E-mail do mantenedor em metadados de pacote.")
     p.add_argument("--homepage", default=None, help="Homepage pública para metadados. Se omitido, usa --server.")
     p.add_argument("--profile", choices=["safe", "full"], default="full", help="full: TODOS os arquivos da allowlist com rebrand textual patch-only; safe: só correções críticas/build. Padrão: full.")
