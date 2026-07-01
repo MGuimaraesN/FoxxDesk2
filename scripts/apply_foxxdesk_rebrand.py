@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v16.py
+apply_foxxdesk_rebrand_all_files_no_zip_v18.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v17-portable-packer-path-guard-safe-no-zip-2026-07-01"
+SCRIPT_VERSION = "v18-ci-executable-and-msi-duplicate-guard-no-zip-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -347,11 +347,30 @@ GENERATED_HELPER_FILES: set[str] = {
 }
 
 EXECUTABLE_FILES: set[str] = {
-    # GitHub Actions/Linux runners precisam desses bits preservados no Git.
+    # GitHub Actions/Linux/macOS runners precisam desses bits preservados no Git.
     # O script aplica chmod +x no filesystem; depois `git add` registra modo 100755.
     "build.py",
+    "entrypoint.sh",
+    "res/osx-dist.sh",
+    "flutter/build_android.sh",
     "flutter/build_android_deps.sh",
+    "flutter/build_fdroid.sh",
+    "flutter/build_ios.sh",
+    "flutter/ios_arm64.sh",
+    "flutter/ios_x64.sh",
+    "flutter/ndk_arm.sh",
+    "flutter/ndk_arm64.sh",
+    "flutter/ndk_x64.sh",
+    "flutter/ndk_x86.sh",
+    "flutter/run.sh",
     "scripts/fix_generated_bridge_compat.py",
+}
+
+# Arquivos antigos que não podem coexistir com o novo nome.
+# No WiX SDK, todos os .wxs do diretório entram no build; manter RustDesk.wxs
+# junto com FoxxDesk.wxs duplica ComponentGroup:Components e Component:App.StartMenu.
+OBSOLETE_AFTER_RENAME_FILES: Dict[str, str] = {
+    "res/msi/Package/Components/RustDesk.wxs": "res/msi/Package/Components/FoxxDesk.wxs",
 }
 
 OPTIONAL_FILES: set[str] = {
@@ -1226,17 +1245,59 @@ def process_one_file(target: Path, rel: str, args: argparse.Namespace, report: D
 
 
 
+def cleanup_obsolete_after_rename_files(target: Path, args: argparse.Namespace, report: Dict[str, Any], backup_root: Optional[Path]) -> None:
+    """Remove arquivos antigos que quebram build quando coexistem com o novo nome.
+
+    Diferente de --remove-old-renamed, isto é aplicado por padrão apenas para
+    casos comprovadamente perigosos. O caso atual é o WiX/MSI: o SDK inclui
+    todos os .wxs automaticamente; se RustDesk.wxs e FoxxDesk.wxs existem,
+    ambos definem os mesmos IDs e o build falha com WIX0091/WIX0092.
+    """
+    for old_rel, new_rel in OBSOLETE_AFTER_RENAME_FILES.items():
+        old_path = target / old_rel
+        new_path = target / new_rel
+        report["analyzed_files"].append(old_rel)
+        if not old_path.exists():
+            report["already_applied_files"].append(old_rel)
+            continue
+        if not new_path.exists():
+            # Não remove o antigo se o novo ainda não existe; isso evita apagar
+            # o único componente MSI válido em um checkout parcialmente atualizado.
+            report["pending"].append({
+                "file": old_rel,
+                "message": f"arquivo antigo existe, mas o substituto {new_rel} não existe; não removido automaticamente",
+            })
+            continue
+        report["changed_files"].append(old_rel)
+        report["changes"].append({
+            "file": old_rel,
+            "line": 1,
+            "status": "removido" if args.apply else "removeria",
+            "action": "remover arquivo antigo que duplica símbolos no MSI",
+            "message": f"{old_rel} não pode coexistir com {new_rel}; evita WIX0091/WIX0092",
+        })
+        if args.apply:
+            if backup_root is not None:
+                copy_backup(target, backup_root, old_rel)
+            try:
+                old_path.unlink()
+            except OSError as exc:
+                report["pending"].append({"file": old_rel, "message": f"falha ao remover arquivo obsoleto: {exc}"})
+
+
 def ensure_executable_permissions(target: Path, args: argparse.Namespace, report: Dict[str, Any], backup_root: Optional[Path]) -> None:
     '''Marca scripts críticos como executáveis para CI Linux/macOS.
 
     Importante: o chmod no filesystem precisa ser seguido de `git add` para o
     Git registrar o modo 100755. Isso cobre o caso de
-    `flutter/build_android_deps.sh` e também `build.py`.
+    `flutter/ndk_arm64.sh`, `flutter/build_android_deps.sh` e também `build.py`.
     '''
     for rel in sorted(EXECUTABLE_FILES):
         path = target / rel
         if not path.exists() or not path.is_file():
-            if rel in {"build.py", "flutter/build_android_deps.sh"}:
+            # Só marca como ausente o que é realmente obrigatório na raiz.
+            # Outros scripts podem não existir em versões/forks diferentes.
+            if rel in {"build.py"}:
                 report["missing_files"].append(rel)
             continue
         try:
@@ -1288,6 +1349,13 @@ def validate_build_safety(target: Path, report: Dict[str, Any]) -> None:
                 })
         except OSError:
             pass
+    old_msi = target / "res/msi/Package/Components/RustDesk.wxs"
+    new_msi = target / "res/msi/Package/Components/FoxxDesk.wxs"
+    if old_msi.exists() and new_msi.exists() and "res/msi/Package/Components/RustDesk.wxs" not in report.get("changed_files", []):
+        report["pending"].append({
+            "file": "res/msi/Package/Components/RustDesk.wxs",
+            "message": "RustDesk.wxs e FoxxDesk.wxs coexistem; o WiX inclui ambos e duplica ComponentGroup:Components/App.StartMenu",
+        })
 
 
 def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path) -> str:
@@ -1297,12 +1365,12 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v16.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v18.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
         f"- Perfil: `{args.profile}`",
-        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável`",
+        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável completo + MSI duplicate guard v18 completo + MSI duplicate guard v18`",
         "- Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.",
         "",
         "## Valores dinâmicos",
@@ -1413,6 +1481,7 @@ def main() -> int:
         report["backup_dir"] = str(backup_root)
 
     apply_file_renames(target, args, report, backup_root)
+    cleanup_obsolete_after_rename_files(target, args, report, backup_root)
 
     if args.scan_all:
         candidates = sorted(set(iter_scan_files(target, args.max_size)))
