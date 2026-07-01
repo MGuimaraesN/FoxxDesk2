@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v13.py
+apply_foxxdesk_rebrand_all_files_no_zip_v14.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v13-build-safe-patch-only-no-zip-2026-07-01"
+SCRIPT_VERSION = "v14-upstream-branches-safe-no-zip-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -381,6 +381,10 @@ PROTECT_PATTERNS: Sequence[str] = (
     # Build/upstream internos que NÃO devem ser renomeados; alguns workflows
     # dependem desses nomes exatos no action rustdesk-org/run-on-arch-action.
     r"rustdesk/engine",
+    # Branches reais em repositórios upstream. Não existem como foxxdesk/*.
+    r"rustdesk/pty_based_[A-Za-z0-9._-]+",
+    r"branch\s*=\s*\"rustdesk/[A-Za-z0-9._/-]+\"",
+    r"branch=rustdesk/[A-Za-z0-9._/-]+",
     r"ubuntu18\.04-rustdesk",
     r"Dockerfile\.[A-Za-z0-9._-]*-rustdesk",
     # Crates/submódulos internos mantêm seus nomes upstream.
@@ -674,6 +678,28 @@ def patch_workflow_build_internals(rel: str, text: str) -> str:
     return text
 
 
+def patch_upstream_dependency_branches(rel: str, text: str) -> str:
+    """Corrige danos de rebrand em branches de dependências Git upstream.
+
+    Exemplo real: `portable-pty` vem de `rustdesk-org/wezterm` usando a
+    branch `rustdesk/pty_based_0.8.1`. Essa branch pertence ao upstream e
+    NÃO deve virar `foxxdesk/pty_based_0.8.1`, porque ela não existe.
+    """
+    if rel not in {"Cargo.toml", "Cargo.lock", "libs/portable/Cargo.lock"}:
+        return text
+    text = re.sub(
+        r'branch\s*=\s*"foxxdesk/(pty_based_[A-Za-z0-9._-]+)"',
+        r'branch = "rustdesk/\1"',
+        text,
+    )
+    text = re.sub(
+        r'branch=foxxdesk/(pty_based_[A-Za-z0-9._-]+)',
+        r'branch=rustdesk/\1',
+        text,
+    )
+    return text
+
+
 def patch_codegen_submodule_guard(rel: str, text: str) -> str:
     """Garante que jobs de flutter_rust_bridge tenham libs/hbb_common antes do codegen.
 
@@ -710,9 +736,11 @@ def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:
     text = patch_server_defaults(rel, text, args)
     text = patch_package_scripts(rel, text, args)
     text = patch_workflow_build_internals(rel, text)
+    text = patch_upstream_dependency_branches(rel, text)
     text = patch_codegen_submodule_guard(rel, text)
     if args.profile == "full" and not rel.startswith(".github/workflows/"):
         text = safe_brand_replacements(text)
+        text = patch_upstream_dependency_branches(rel, text)
     # Workflows têm nomes internos de actions/upstream; não aplicar reforços genéricos neles.
     if not rel.startswith(".github/workflows/"):
         # Reforços pontuais após patches específicos.
@@ -835,7 +863,7 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v13.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v14.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
