@@ -318,6 +318,8 @@ def ffi_bindgen_function_refactor():
     # workaround ffigen
     system2(
         'sed -i "s/ffi.NativeFunction<ffi.Bool Function(DartPort/ffi.NativeFunction<ffi.Uint8 Function(DartPort/g" flutter/lib/generated_bridge.dart')
+    if os.path.exists("scripts/fix_generated_bridge_compat.py"):
+        system2("python3 scripts/fix_generated_bridge_compat.py")
 
 
 def build_flutter_deb(version, features):

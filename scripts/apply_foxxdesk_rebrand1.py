@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v15.py
+apply_foxxdesk_rebrand_all_files_no_zip_v14.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v15-windows-flutter-bridge-safe-no-zip-2026-07-01"
+SCRIPT_VERSION = "v14-upstream-branches-safe-no-zip-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -151,7 +151,6 @@ ALLOWED_FILES: List[str] = [
     'flutter/lib/common/widgets/toolbar.dart',
     'flutter/lib/consts.dart',
     'flutter/lib/desktop/pages/desktop_setting_page.dart',
-    'flutter/lib/desktop/widgets/remote_toolbar.dart',
     'flutter/lib/mobile/pages/settings_page.dart',
     'flutter/lib/models/group_model.dart',
     'flutter/lib/models/model.dart',
@@ -342,10 +341,6 @@ SAFE_CORE_FILES: List[str] = [
 ]
 
 
-GENERATED_HELPER_FILES: set[str] = {
-    "scripts/fix_generated_bridge_compat.py",
-}
-
 OPTIONAL_FILES: set[str] = {
     # Scripts auxiliares gerados em versões antigas do rebrand.
     # Não são necessários para compilar o projeto e não devem ser recriados
@@ -369,48 +364,6 @@ FILE_RENAMES: Dict[str, str] = {
     "res/msi/Package/Components/RustDesk.wxs": "res/msi/Package/Components/FoxxDesk.wxs",
 }
 
-BRIDGE_COMPAT_SCRIPT = r'''#!/usr/bin/env python3
-"""Keep old Dart API name RustdeskImpl after FoxxDesk Cargo package rename.
-
-flutter_rust_bridge derives the generated Dart implementation class from the
-Cargo package name. After package name `rustdesk` -> `foxxdesk`, the generated
-class may become `FoxxdeskImpl`, but the Flutter app still imports/uses the
-stable internal API name `RustdeskImpl`.
-
-Do not rename all app code blindly. Add a Dart typedef alias instead.
-"""
-from __future__ import annotations
-
-import re
-from pathlib import Path
-
-p = Path("flutter/lib/generated_bridge.dart")
-if not p.exists():
-    raise SystemExit(f"Missing generated bridge: {p}")
-
-s = p.read_text(encoding="utf-8")
-
-if "class RustdeskImpl" in s or "typedef RustdeskImpl" in s:
-    print("generated_bridge.dart already exposes RustdeskImpl")
-    raise SystemExit(0)
-
-classes = re.findall(r"class\s+([A-Za-z_][A-Za-z0-9_]*Impl)\b", s)
-preferred = [c for c in classes if "foxx" in c.lower() or "desk" in c.lower()]
-impl = preferred[0] if preferred else (classes[0] if classes else None)
-
-if not impl:
-    raise SystemExit("Could not find generated bridge implementation class ending with Impl")
-
-alias = f"""
-
-// FoxxDesk compatibility alias.
-// Keep the Flutter source compatible with the original FoxxDesk internal FFI name.
-typedef RustdeskImpl = {impl};
-"""
-p.write_text(s.rstrip() + alias + "\n", encoding="utf-8")
-print(f"Added typedef RustdeskImpl = {impl};")
-'''
-
 # Nomes/URLs que devem continuar como upstream ou API interna.
 PROTECT_PATTERNS: Sequence[str] = (
     r"https?://[^\s\)\]\}\>\"']*rustdesk[^\s\)\]\}\>\"']*",
@@ -424,8 +377,6 @@ PROTECT_PATTERNS: Sequence[str] = (
     r"try_kill_rustdesk_main_window_process",
     r"RustDeskTempTopMostWindow",
     r"RustDeskInterval",
-    r"RustdeskImpl",
-    r"FoxxdeskImpl",
     r"DeleteRustDeskTestCert",
     # Build/upstream internos que NÃO devem ser renomeados; alguns workflows
     # dependem desses nomes exatos no action rustdesk-org/run-on-arch-action.
@@ -776,169 +727,17 @@ def patch_codegen_submodule_guard(rel: str, text: str) -> str:
     return pattern.sub(r"\1" + guard, text)
 
 
-def patch_bridge_workflow_compat(rel: str, text: str) -> str:
-    """Aplica o alias RustdeskImpl após o flutter_rust_bridge_codegen no workflow."""
-    if rel != ".github/workflows/bridge.yml":
-        return text
-    if "Patch FoxxDesk bridge compatibility" in text:
-        return text
-    marker = """      - name: Upload Artifact
-        uses: actions/upload-artifact"""
-    step = """      - name: Patch FoxxDesk bridge compatibility
-        shell: bash
-        run: python3 scripts/fix_generated_bridge_compat.py
-
-"""
-    if marker in text:
-        return text.replace(marker, step + marker, 1)
-    pattern = re.compile(
-        r"(?ms)(^      - name: .*?(?:flutter rust bridge|bridge).*?\n"
-        r"(?:^        .*?\n)*?"
-        r"^        run: \|\n"
-        r"(?:^          .*flutter_rust_bridge_codegen.*\n))",
-        re.IGNORECASE,
-    )
-    return pattern.sub(r"\1\n" + step, text, count=1)
-
-
-def patch_build_py_bridge_compat(rel: str, text: str) -> str:
-    """Faz o build.py rodar o fixer do generated_bridge.dart localmente também."""
-    if rel != "build.py":
-        return text
-    if "scripts/fix_generated_bridge_compat.py" in text:
-        return text
-    old = '''def ffi_bindgen_function_refactor():
-    # workaround ffigen
-    system2(
-        'sed -i "s/ffi.NativeFunction<ffi.Bool Function(DartPort/ffi.NativeFunction<ffi.Uint8 Function(DartPort/g" flutter/lib/generated_bridge.dart')
-'''
-    new = '''def ffi_bindgen_function_refactor():
-    # workaround ffigen
-    system2(
-        'sed -i "s/ffi.NativeFunction<ffi.Bool Function(DartPort/ffi.NativeFunction<ffi.Uint8 Function(DartPort/g" flutter/lib/generated_bridge.dart')
-    if os.path.exists("scripts/fix_generated_bridge_compat.py"):
-        system2("python3 scripts/fix_generated_bridge_compat.py")
-'''
-    if old in text:
-        return text.replace(old, new, 1)
-    pattern = re.compile(
-        r"(?ms)(def ffi_bindgen_function_refactor\(\):\n"
-        r"(?:(?:    |\t).+\n)*?"
-        r"(?:    |\t)system2\(\n"
-        r"(?:(?:    |\t).+\n)*?generated_bridge\.dart['\"]\)\n)",
-    )
-    return pattern.sub(r"\1    if os.path.exists(\"scripts/fix_generated_bridge_compat.py\"):\n        system2(\"python3 scripts/fix_generated_bridge_compat.py\")\n", text, count=1)
-
-
-def patch_windows_flutter_dart_fixes(rel: str, text: str) -> str:
-    """Patches pontuais de null-safety/tipo que quebram build Flutter Windows."""
-    if rel == "flutter/lib/common.dart":
-        return text.replace(
-            "LastWindowPosition.loadFromString(pos);",
-            "LastWindowPosition.loadFromString(pos ?? '');",
-        )
-
-    if rel == "flutter/lib/common/widgets/dialog.dart":
-        return text.replace(
-            "controller.text = osPassword;",
-            "controller.text = osPassword ?? '';",
-            1,
-        )
-
-    if rel == "flutter/lib/desktop/widgets/remote_toolbar.dart":
-        return text.replace(
-            "final results = await Future.wait([",
-            "final results = await Future.wait<bool?>([",
-            1,
-        )
-
-    if rel == "flutter/lib/desktop/pages/desktop_setting_page.dart":
-        return text.replace("_Radio(context", "_Radio<String>(context")
-
-    if rel == "flutter/lib/common/widgets/toolbar.dart":
-        repls = {
-            """                state.value = bind.sessionGetToggleOptionSync(
-                    sessionId: sessionId, arg: option);""": """                state.value = bind.sessionGetToggleOptionSync(
-                        sessionId: sessionId, arg: option) ??
-                    false;""",
-            """    final value =
-        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);""": """    final value =
-            bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option) ??
-        false;""",
-            """    final showCursorEnabled = bind.sessionGetToggleOptionSync(
-        sessionId: sessionId, arg: showCursorOption);""": """    final showCursorEnabled =
-        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: showCursorOption) ??
-            false;""",
-            """      showCursorState.value = bind.sessionGetToggleOptionSync(
-          sessionId: sessionId, arg: showCursorOption);""": """      showCursorState.value = bind.sessionGetToggleOptionSync(
-              sessionId: sessionId, arg: showCursorOption) ??
-          false;""",
-            """          value = bind.sessionGetToggleOptionSync(
-              sessionId: sessionId, arg: option);""": """          value = bind.sessionGetToggleOptionSync(
-                  sessionId: sessionId, arg: option) ??
-              false;""",
-            """            showCursorState.value = bind.sessionGetToggleOptionSync(
-                sessionId: sessionId, arg: showCursorOption);""": """            showCursorState.value = bind.sessionGetToggleOptionSync(
-                    sessionId: sessionId, arg: showCursorOption) ??
-                false;""",
-            """        peerState.value =
-            bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);""": """        peerState.value =
-                bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option) ??
-            false;""",
-        }
-        for old, new in repls.items():
-            if old in text and new not in text:
-                text = text.replace(old, new, 1)
-        return text
-
-    return text
-
-
-def ensure_generated_bridge_compat_helper(target: Path, args: argparse.Namespace, report: Dict[str, Any], backup_root: Optional[Path]) -> None:
-    """Cria/atualiza scripts/fix_generated_bridge_compat.py sem depender de ZIP."""
-    rel = "scripts/fix_generated_bridge_compat.py"
-    path = target / rel
-    old = ""
-    if path.exists() and path.is_file():
-        try:
-            old = normalize_lf(path.read_text(encoding="utf-8"))
-        except UnicodeDecodeError:
-            report["pending"].append({"file": rel, "message": "arquivo existe mas não está em UTF-8; não sobrescrito"})
-            return
-    new = normalize_lf(BRIDGE_COMPAT_SCRIPT)
-    report["analyzed_files"].append(rel)
-    if old == new:
-        report["already_applied_files"].append(rel)
-        return
-    report["changed_files"].append(rel)
-    report["changes"].append({
-        "file": rel,
-        "line": line_for_first_diff(old, new) if old else 1,
-        "status": "alterado" if path.exists() and args.apply else ("criado" if args.apply else "criaria/alteraria"),
-        "action": "criar helper de compatibilidade flutter_rust_bridge",
-        "message": "gera typedef RustdeskImpl = <Impl gerado> após o codegen; sem payload/ZIP",
-    })
-    if args.apply:
-        if backup_root is not None and path.exists():
-            copy_backup(target, backup_root, rel)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(new, encoding="utf-8", newline="\n")
-
-
 def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:
     text = normalize_lf(text)
     text = patch_cargo_lock(rel, text)
     text = patch_cargo_toml(rel, text)
     text = patch_build_py(rel, text, args)
-    text = patch_build_py_bridge_compat(rel, text)
     text = patch_config_rs(rel, text, args)
     text = patch_server_defaults(rel, text, args)
     text = patch_package_scripts(rel, text, args)
     text = patch_workflow_build_internals(rel, text)
     text = patch_upstream_dependency_branches(rel, text)
     text = patch_codegen_submodule_guard(rel, text)
-    text = patch_bridge_workflow_compat(rel, text)
-    text = patch_windows_flutter_dart_fixes(rel, text)
     if args.profile == "full" and not rel.startswith(".github/workflows/"):
         text = safe_brand_replacements(text)
         text = patch_upstream_dependency_branches(rel, text)
@@ -988,8 +787,6 @@ def apply_file_renames(target: Path, args: argparse.Namespace, report: Dict[str,
 def process_one_file(target: Path, rel: str, args: argparse.Namespace, report: Dict[str, Any], backup_root: Optional[Path]) -> None:
     if is_skipped_path(rel):
         report["ignored_files"].append(rel)
-        return
-    if rel in GENERATED_HELPER_FILES:
         return
     path = target / rel
     report["analyzed_files"].append(rel)
@@ -1066,12 +863,12 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v15.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v14.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
         f"- Perfil: `{args.profile}`",
-        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge`",
+        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream`",
         "- Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.",
         "",
         "## Valores dinâmicos",
@@ -1194,8 +991,6 @@ def main() -> int:
 
     for rel in candidates:
         process_one_file(target, rel, args, report, backup_root)
-
-    ensure_generated_bridge_compat_helper(target, args, report, backup_root)
 
     if args.apply and args.remove_old_renamed:
         for src_rel, dst_rel in FILE_RENAMES.items():
