@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_standalone_v9.py
+apply_foxxdesk_rebrand_all_files_no_zip_v12.py
 
-Versão standalone sem ZIP/payload embutido.
+Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
-O que mudou em relação ao v7/v8:
-- Não existe _PAYLOAD_B64.
-- Não carrega ZIP de referência, nem espelha arquivos inteiros.
-- Por padrão aplica somente correções críticas/build em arquivos seguros.
-- Use --profile full para rebrand textual na allowlist completa.
-- Preserva URLs/dependências upstream de rustdesk-org e nomes internos sensíveis.
-- Corrige Cargo.lock de forma cirúrgica para builds com --locked.
-- Mantém --dry-run, --apply, backup automático e relatório.
-
-Importante:
-- Esta versão é mais limpa e auditável, mas não cria arquivos textuais grandes a
-  partir do ZIP antigo. Quando precisa renomear um arquivo, ela copia o arquivo
-  antigo para o novo nome e aplica as regras no conteúdo.
+Objetivo:
+- Fazer o rebrand completo por regras/patches, preservando atualizações futuras.
+- Não lê ZIP de referência.
+- Não usa manifesto externo.
+- Não guarda payload/base64.
+- Não substitui arquivo inteiro por snapshot antigo.
+- Por padrão usa --profile full para alterar a allowlist completa.
+- Esta versão foi nomeada para evitar confusão com a v9 safe, que altera só o núcleo crítico.
+- Use --profile safe apenas se quiser só correções críticas/build.
+- Quando precisa renomear um arquivo, copia o arquivo atual existente no alvo
+  para o novo nome e aplica as regras no conteúdo; não usa versão antiga.
 """
 from __future__ import annotations
 
@@ -31,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v9-standalone-safe-no-payload-2026-07-01"
+SCRIPT_VERSION = "v12-all-files-patch-only-no-zip-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -341,6 +339,17 @@ SAFE_CORE_FILES: List[str] = [
     "flatpak/foxxdesk.json",
     "res/msi/Package/Components/FoxxDesk.wxs",
 ]
+
+
+OPTIONAL_FILES: set[str] = {
+    # Scripts auxiliares gerados em versões antigas do rebrand.
+    # Não são necessários para compilar o projeto e não devem ser recriados
+    # a partir de snapshot antigo só para zerar pendência.
+    "scripts/apply_foxxdesk_brand.py",
+    "scripts/apply_foxxdesk_brand_DEFINITIVE.py",
+    "scripts/apply_foxxdesk_brand_SAFE.py",
+    "scripts/apply_foxxdesk_brand_with_fixes.py",
+}
 
 # Cópias seguras: não apaga o arquivo antigo por padrão.
 FILE_RENAMES: Dict[str, str] = {
@@ -699,7 +708,9 @@ def process_one_file(target: Path, rel: str, args: argparse.Namespace, report: D
     path = target / rel
     report["analyzed_files"].append(rel)
     if not path.exists():
-        if rel in ALLOWED_FILES:
+        if rel in OPTIONAL_FILES:
+            report["ignored_files"].append(rel + " (opcional ausente)")
+        elif rel in ALLOWED_FILES:
             report["missing_files"].append(rel)
         return
     if not path.is_file():
@@ -744,11 +755,13 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_standalone_v9.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v12.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
-        "- Payload/ZIP embutido: `não`",
+        "- Payload/ZIP/manifesto externo: `não`",
+        "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
         f"- Perfil: `{args.profile}`",
-        "- Estratégia: `safe = correções críticas; full = allowlist completa + proteção de upstream`",
+        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream`",
+        "- Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.",
         "",
         "## Valores dinâmicos",
         "",
@@ -809,7 +822,7 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Aplica rebrand FoxxDesk standalone, sem ZIP/payload embutido.")
+    p = argparse.ArgumentParser(description="Aplica rebrand FoxxDesk em todos os arquivos da allowlist, patch-only, sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.")
     p.add_argument("--target", default="./", help="Pasta raiz do projeto alvo. Padrão: ./")
     mode = p.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="Mostra o que seria alterado sem salvar arquivos do projeto, exceto relatório.")
@@ -820,7 +833,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--key", default=None, help="Chave pública; usada em config.rs e FOXXDESK_SERVER_DEFAULTS.md.")
     p.add_argument("--maintainer-email", default=None, help="E-mail do mantenedor em metadados de pacote.")
     p.add_argument("--homepage", default=None, help="Homepage pública para metadados. Se omitido, usa --server.")
-    p.add_argument("--profile", choices=["safe", "full"], default="safe", help="safe: só correções críticas/build; full: allowlist completa com rebrand textual. Padrão: safe.")
+    p.add_argument("--profile", choices=["safe", "full"], default="full", help="full: TODOS os arquivos da allowlist com rebrand textual patch-only; safe: só correções críticas/build. Padrão: full.")
     p.add_argument("--scan-all", action="store_true", help="Opcional: varre todos os arquivos textuais fora das pastas ignoradas. Recomendado só com --profile full.")
     p.add_argument("--max-size", type=int, default=2_000_000, help="Tamanho máximo por arquivo textual analisado. Padrão: 2MB.")
     p.add_argument("--remove-old-renamed", action="store_true", help="Depois de copiar arquivos renomeados, remove os antigos. Use só após conferir o dry-run.")
@@ -891,6 +904,8 @@ def main() -> int:
     print(f"Script: {SCRIPT_VERSION}")
     print(f"Relatório gerado em: {report_path}")
     print(f"Modo: {'apply' if args.apply else 'dry-run'} | arquivos alterados: {changed} | pendências: {pending} | não encontrados: {missing}")
+    if args.profile == "safe":
+        print("AVISO: você usou --profile safe; ele altera só o núcleo crítico. Para todos os arquivos, rode sem --profile ou use --profile full.")
     if args.dry_run:
         print("Dry-run concluído: nenhum arquivo do projeto foi salvo, exceto o relatório.")
     return 0 if pending == 0 else 1
