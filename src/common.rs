@@ -1007,17 +1007,12 @@ pub fn get_app_name() -> String {
 
 #[inline]
 pub fn is_rustdesk() -> bool {
-    hbb_common::config::APP_NAME.read().unwrap().eq("FoxxDesk")
+    hbb_common::config::APP_NAME.read().unwrap().eq("RustDesk")
 }
 
 #[inline]
 pub fn get_uri_prefix() -> String {
     format!("{}://", get_app_name().to_lowercase())
-}
-
-#[inline]
-pub fn is_supported_uri_link(value: &str) -> bool {
-    value.starts_with(&get_uri_prefix()) || value.starts_with("rustdesk://")
 }
 
 #[cfg(target_os = "macos")]
@@ -1928,7 +1923,7 @@ pub fn check_process(arg: &str, mut same_uid: bool) -> bool {
         if same_uid && p.user_id() != my_uid {
             continue;
         }
-        // On macOS p.cmd() can contain the FoxxDesk app path and launch-agent service name.
+        // on mac, p.cmd() get "/Applications/RustDesk.app/Contents/MacOS/RustDesk", "XPC_SERVICE_NAME=com.carriez.RustDesk_server"
         let parg = if p.cmd().len() <= 1 { "" } else { &p.cmd()[1] };
         if arg.is_empty() {
             if !parg.starts_with("--") {
@@ -2287,7 +2282,7 @@ pub fn get_builtin_option(key: &str) -> String {
 
 #[inline]
 pub fn is_custom_client() -> bool {
-    get_app_name() != "FoxxDesk"
+    get_app_name() != "RustDesk"
 }
 
 pub fn verify_login(_raw: &str, _id: &str) -> bool {
@@ -2658,7 +2653,7 @@ mod tests {
     // ThrottledInterval tick at the same time as tokio interval, if no sleeps
     #[allow(non_snake_case)]
     #[tokio::test]
-    async fn test_FoxxDesk_interval() {
+    async fn test_RustDesk_interval() {
         let base_intervals = [interval_maker, interval_at_maker];
         for maker in base_intervals.into_iter() {
             let mut tokio_timer = maker();
@@ -2707,7 +2702,7 @@ mod tests {
     // ThrottledInterval tick less times than tokio interval, if there're sleeps
     #[allow(non_snake_case)]
     #[tokio::test]
-    async fn test_FoxxDesk_interval_sleep() {
+    async fn test_RustDesk_interval_sleep() {
         let base_intervals = [interval_maker, interval_at_maker];
         for (i, maker) in base_intervals.into_iter().enumerate() {
             let mut timer = rustdesk_interval(maker());

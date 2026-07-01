@@ -73,7 +73,7 @@ lazy_static::lazy_static! {
             log::warn!("Not running as root, SUDO_E_PRESERVES_ENV check skipped");
             false
         } else {
-            let key = format!("__FOXXDESK_SUDO_E_TEST_{}", std::process::id());
+            let key = format!("__RUSTDESK_SUDO_E_TEST_{}", std::process::id());
             let val = "1";
             let expected = format!("{key}={val}");
             Command::new("sudo")
@@ -696,7 +696,7 @@ fn set_x11_env(desktop: &Desktop) {
 }
 
 #[inline]
-fn stop_foxxdesk_servers() {
+fn stop_rustdesk_servers() {
     let _ = run_cmds(&format!(
         r##"ps -ef | grep -E '{} +--server' | awk '{{print $2}}' | xargs -r kill -9"##,
         crate::get_app_name().to_lowercase(),
@@ -784,15 +784,15 @@ fn should_start_server(
 }
 
 // to-do: stop_server(&mut user_server); may not stop child correctly
-// stop_foxxdesk_servers() is just a temp solution here.
+// stop_rustdesk_servers() is just a temp solution here.
 fn force_stop_server() {
-    stop_foxxdesk_servers();
+    stop_rustdesk_servers();
     sleep_millis(super::SERVICE_INTERVAL);
 }
 
 pub fn start_os_service() {
     check_if_stop_service();
-    stop_foxxdesk_servers();
+    stop_rustdesk_servers();
     stop_subprocess();
     start_uinput_service();
 
@@ -2063,7 +2063,7 @@ pub fn uninstall_service(show_new_window: bool, _: bool) -> bool {
     log::info!("Uninstalling service...");
     let cp = switch_service(true);
     let app_name = crate::get_app_name().to_lowercase();
-    // systemctl kill foxxdesk --tray, execute cp first
+    // systemctl kill rustdesk --tray, execute cp first
     if !run_cmds_privileged(&format!(
         "{cp} systemctl disable {app_name}; systemctl stop {app_name};"
     )) {
@@ -2214,7 +2214,7 @@ pub fn is_selinux_enforcing() -> bool {
 fn get_shortcuts_inhibitor_app_id() -> String {
     if is_flatpak() {
         // In Flatpak, FLATPAK_ID is set automatically by the runtime to the app ID
-        // (e.g., "com.foxxdesk.client"). This is the most reliable source.
+        // (e.g., "com.rustdesk.RustDesk"). This is the most reliable source.
         // Fall back to constructing from app name if not available.
         match std::env::var("FLATPAK_ID") {
             Ok(id) if !id.is_empty() => format!("{}.desktop", id),

@@ -797,8 +797,7 @@ Future<List<TToggleMenu>> toolbarCursor(
                 await bind.sessionToggleOption(
                     sessionId: sessionId, value: option);
                 state.value = bind.sessionGetToggleOptionSync(
-                        sessionId: sessionId, arg: option) ??
-                    false;
+                    sessionId: sessionId, arg: option);
               }
             : null));
   }
@@ -812,21 +811,18 @@ Future<List<TToggleMenu>> toolbarCursor(
       !bind.sessionIsMultiUiSession(sessionId: sessionId)) {
     final option = 'follow-remote-cursor';
     final value =
-            bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option) ??
-        false;
+        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
     final showCursorOption = 'show-remote-cursor';
     final showCursorState = ShowRemoteCursorState.find(id);
     final showCursorLockState = ShowRemoteCursorLockState.find(id);
-    final showCursorEnabled =
-        bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: showCursorOption) ??
-            false;
+    final showCursorEnabled = bind.sessionGetToggleOptionSync(
+        sessionId: sessionId, arg: showCursorOption);
     showCursorLockState.value = value;
     if (value && !showCursorEnabled) {
       await bind.sessionToggleOption(
           sessionId: sessionId, value: showCursorOption);
       showCursorState.value = bind.sessionGetToggleOptionSync(
-              sessionId: sessionId, arg: showCursorOption) ??
-          false;
+          sessionId: sessionId, arg: showCursorOption);
     }
     v.add(TToggleMenu(
         child: Text(translate('Follow remote cursor')),
@@ -835,15 +831,13 @@ Future<List<TToggleMenu>> toolbarCursor(
           if (value == null) return;
           await bind.sessionToggleOption(sessionId: sessionId, value: option);
           value = bind.sessionGetToggleOptionSync(
-                  sessionId: sessionId, arg: option) ??
-              false;
+              sessionId: sessionId, arg: option);
           showCursorLockState.value = value;
           if (!showCursorEnabled) {
             await bind.sessionToggleOption(
                 sessionId: sessionId, value: showCursorOption);
             showCursorState.value = bind.sessionGetToggleOptionSync(
-                    sessionId: sessionId, arg: showCursorOption) ??
-                false;
+                sessionId: sessionId, arg: showCursorOption);
           }
         }));
   }
@@ -882,8 +876,7 @@ Future<List<TToggleMenu>> toolbarCursor(
         if (value == null) return;
         await bind.sessionToggleOption(sessionId: sessionId, value: option);
         peerState.value =
-                bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option) ??
-            false;
+            bind.sessionGetToggleOptionSync(sessionId: sessionId, arg: option);
       },
     ));
   }
@@ -1256,7 +1249,7 @@ bool showVirtualDisplayMenu(FFI ffi) {
   if (!ffi.ffiModel.pi.isInstalled) {
     return false;
   }
-  if (ffi.ffiModel.pi.isFoxxDeskIdd || ffi.ffiModel.pi.isAmyuniIdd) {
+  if (ffi.ffiModel.pi.isRustDeskIdd || ffi.ffiModel.pi.isAmyuniIdd) {
     return true;
   }
   return false;
@@ -1269,8 +1262,8 @@ List<Widget> getVirtualDisplayMenuChildren(
   }
   final pi = ffi.ffiModel.pi;
   final privacyModeState = PrivacyModeState.find(id);
-  if (pi.isFoxxDeskIdd) {
-    final virtualDisplays = ffi.ffiModel.pi.FoxxDeskVirtualDisplays;
+  if (pi.isRustDeskIdd) {
+    final virtualDisplays = ffi.ffiModel.pi.RustDeskVirtualDisplays;
     final children = <Widget>[];
     for (var i = 0; i < kMaxVirtualDisplayCount; i++) {
       children.add(Obx(() => CkbMenuButton(

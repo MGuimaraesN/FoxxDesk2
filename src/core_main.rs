@@ -162,7 +162,7 @@ pub fn core_main() -> Option<Vec<String>> {
 
     // linux uni (url) go here.
     #[cfg(all(target_os = "linux", feature = "flutter"))]
-    if args.len() > 0 && crate::is_supported_uri_link(&args[0]) {
+    if args.len() > 0 && args[0].starts_with(&crate::get_uri_prefix()) {
         return try_send_by_dbus(args[0].clone());
     }
 
@@ -201,7 +201,7 @@ pub fn core_main() -> Option<Vec<String>> {
     } else {
         #[cfg(any(target_os = "linux", target_os = "macos"))]
         // Root CLI management commands must talk to the user `--server` main IPC.
-        // Example: `sudo foxxdesk --option custom-rendezvous-server` should query the
+        // Example: `sudo rustdesk --option custom-rendezvous-server` should query the
         // user's IPC instead of root's `/tmp/<app>-0/ipc`; `connect()` still limits this
         // routing to empty-postfix main IPC only.
         let _user_main_ipc_scope = if crate::platform::is_installed()
@@ -723,7 +723,7 @@ pub fn core_main() -> Option<Vec<String>> {
             }
             return None;
         } else if args[0] == "-gtk-sudo" {
-            // foxxdesk service kill `foxxdesk --` processes
+            // rustdesk service kill `rustdesk --` processes
             #[cfg(target_os = "linux")]
             if args.len() > 2 {
                 crate::platform::gtk_sudo::exec();

@@ -1007,7 +1007,7 @@ _connectDialog(
       }
       return Column(
         children: [
-          descWidget(translate('verify_foxxdesk_password_tip')),
+          descWidget(translate('verify_rustdesk_password_tip')),
           PasswordWidget(
             controller: passwordController,
             autoFocus: osUsernameController == null,
@@ -1366,7 +1366,7 @@ showSetOSPassword(
   var autoLogin =
       await bind.sessionGetOption(sessionId: sessionId, arg: 'auto-login') !=
           '';
-  controller.text = osPassword ?? '';
+  controller.text = osPassword;
   dialogManager.show((setState, close, context) {
     closeWithCallback([dynamic]) {
       close();

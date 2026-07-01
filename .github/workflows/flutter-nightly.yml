@@ -1,4 +1,4 @@
-name: FoxxDesk Nightly Build
+name: Flutter Nightly Build
 
 on:
   schedule:
@@ -12,4 +12,4 @@ jobs:
     secrets: inherit
     with:
       upload-artifact: true
-      upload-tag: "foxxdesk-nightly"
+      upload-tag: "nightly"
