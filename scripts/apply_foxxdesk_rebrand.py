@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v21.py
+apply_foxxdesk_rebrand_all_files_no_zip_v22.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v21-printer-driver-paths-case-safe-2026-07-01"
+SCRIPT_VERSION = "v22-windows-appdata-driver-cleanup-2026-07-02"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -1537,6 +1537,39 @@ def validate_build_safety(target: Path, report: Dict[str, Any]) -> None:
         })
 
 
+    # V22 validations: no old driver names in source-controlled printer paths and no lowercase Windows LocalAppData folder names.
+    for rel in [
+        "libs/remote_printer/src/lib.rs",
+        "libs/remote_printer/src/setup/driver.rs",
+        "res/msi/CustomActions/RemotePrinter.cpp",
+        "res/msi/preprocess.py",
+        ".github/workflows/flutter-build.yml",
+        "res/job.py",
+        "BRAND_CHANGELOG.md",
+    ]:
+        p = target / rel
+        if not p.exists():
+            continue
+        try:
+            t = normalize_lf(p.read_text(encoding="utf-8", errors="ignore"))
+        except OSError:
+            continue
+        t_check = t.replace("rustdesk_printer_driver_v4-1.4.zip", "").replace("rustdesk_printer_driver_v4-1.4", "")
+        if "RustDeskPrinterDriver" in t_check:
+            report["pending"].append({"file": rel, "message": "ainda existe RustDeskPrinterDriver fora do nome de ZIP/download upstream; V22 deve normalizar para FoxxDeskPrinterDriver"})
+        if "rustdesk v4 Printer Driver" in t_check or "foxxdesk v4 Printer Driver" in t_check:
+            report["pending"].append({"file": rel, "message": "driver ainda está minúsculo; deve ser FoxxDesk v4 Printer Driver"})
+    for rel in ["libs/portable/src/main.rs", "src/platform/windows.rs"]:
+        p = target / rel
+        if not p.exists():
+            continue
+        try:
+            t = normalize_lf(p.read_text(encoding="utf-8", errors="ignore"))
+        except OSError:
+            continue
+        if 'const APP_PREFIX: &str = "foxxdesk"' in t or 'foxxdesk-sciter' in t:
+            report["pending"].append({"file": rel, "message": "pasta LocalAppData ainda usa foxxdesk/foxxdesk-sciter; deve usar FoxxDesk"})
+
 def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path) -> str:
     now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = ["# Relatório de rebrand FoxxDesk", ""]
@@ -1544,12 +1577,12 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v21.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v22.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
         f"- Perfil: `{args.profile}`",
-        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável completo + MSI duplicate guard v18 + embedded server/relay/key defaults ocultos + artefatos limpos v20 + ajustes seguros de driver/impressora v21`",
+        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável completo + MSI duplicate guard v18 + embedded server/relay/key defaults ocultos + artefatos limpos v20 + ajustes seguros de driver/impressora v21 + AppData Local FoxxDesk e limpeza final de driver v22`",
         "- Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.",
         "",
         "## Valores dinâmicos",
@@ -1927,6 +1960,135 @@ def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:  # type: i
     text = patch_windows_install_runtime_and_printer_names(rel, text, args)
     text = patch_portable_packer_robustness(rel, text)
     text = patch_printer_driver_details_v21(rel, text, args)
+    text = patch_windows_appdata_and_driver_cleanup_v22(rel, text, args)
+    return text
+
+
+def patch_windows_appdata_and_driver_cleanup_v22(rel: str, text: str, args: argparse.Namespace) -> str:
+    # V22: força AppData/portable Windows como FoxxDesk e remove sobras RustDeskPrinterDriver.
+    # URLs e nomes de ZIP upstream continuam com rustdesk quando o arquivo real publicado usa esse nome.
+    if rel == "libs/portable/src/main.rs":
+        text = re.sub(r'const APP_PREFIX: &str = "(?:rustdesk|foxxdesk|FoxxDesk)";', 'const APP_PREFIX: &str = "FoxxDesk";', text, count=1)
+        text = text.replace('const APPNAME_RUNTIME_ENV_KEY: &str = "RUSTDESK_APPNAME";', 'const APPNAME_RUNTIME_ENV_KEY: &str = "FOXXDESK_APPNAME";')
+        text = text.replace('std::env::var("RUSTDESK_APPNAME")', 'std::env::var("FOXXDESK_APPNAME").or_else(|_| std::env::var("RUSTDESK_APPNAME"))')
+
+    if rel == "src/platform/windows.rs":
+        text = text.replace('.join("rustdesk-sciter")', '.join("FoxxDesk")')
+        text = text.replace('.join("foxxdesk-sciter")', '.join("FoxxDesk")')
+        text = text.replace('.join("rustdesk")', '.join("FoxxDesk")')
+        text = text.replace('.join("foxxdesk")', '.join("FoxxDesk")')
+
+    if rel == "libs/hbb_common/src/config.rs":
+        old = 'directories_next::ProjectDirs::from("", &org, &APP_NAME.read().unwrap())'
+        new = 'directories_next::ProjectDirs::from(\n                    "",\n                    &org,\n                    if cfg!(target_os = "windows") {\n                        "FoxxDesk"\n                    } else {\n                        &APP_NAME.read().unwrap()\n                    },\n                )'
+        pos = text.find('directories_next::ProjectDirs::from')
+        window = text[max(0, pos - 200):pos + 500] if pos >= 0 else ''
+        if old in text and 'if cfg!(target_os = "windows") {' not in window:
+            text = text.replace(old, new, 1)
+
+    if rel in {"build.py", ".github/workflows/flutter-build.yml"}:
+        text = text.replace('RUSTDESK_APPNAME', 'FOXXDESK_APPNAME')
+
+    if rel == "libs/remote_printer/src/lib.rs":
+        text = re.sub(
+            r'const RD_DRIVER_INF_PATH: &str = "drivers/(?:RustDesk|rustdesk|FoxxDesk|foxxdesk)PrinterDriver/(?:RustDesk|rustdesk|FoxxDesk|foxxdesk)PrinterDriver\.inf";',
+            'const RD_DRIVER_INF_PATH: &str = "drivers/FoxxDeskPrinterDriver/FoxxDeskPrinterDriver.inf";',
+            text,
+            count=1,
+        )
+        text = text.replace('RustDeskPrinterDriver', 'FoxxDeskPrinterDriver')
+        text = text.replace('"rustdesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+        text = text.replace('"foxxdesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+        text = text.replace('"RustDesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+
+    if rel == "libs/remote_printer/src/setup/driver.rs":
+        text = text.replace('RustDeskPrinterDriver', 'FoxxDeskPrinterDriver')
+        text = text.replace('RustDesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('rustdesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('foxxdesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('RustDesk Printer', 'FoxxDesk Printer')
+        text = text.replace('rustdesk Printer', 'FoxxDesk Printer')
+        text = text.replace('foxxdesk Printer', 'FoxxDesk Printer')
+
+    if rel == "res/msi/CustomActions/RemotePrinter.cpp":
+        text = re.sub(
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\(?:RustDesk|rustdesk|FoxxDesk|foxxdesk)PrinterDriver\\(?:RustDesk|rustdesk|FoxxDesk|foxxdesk)PrinterDriver\.inf";',
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\FoxxDeskPrinterDriver\\FoxxDeskPrinterDriver.inf";',
+            text,
+            count=1,
+        )
+        text = text.replace('RustDeskPrinterDriver', 'FoxxDeskPrinterDriver')
+        text = text.replace('RustDesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('rustdesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('foxxdesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('RustDesk Printer', 'FoxxDesk Printer')
+        text = text.replace('rustdesk Printer', 'FoxxDesk Printer')
+        text = text.replace('foxxdesk Printer', 'FoxxDesk Printer')
+
+    if rel == "res/msi/preprocess.py":
+        text = text.replace('line = line.replace(f"{app_name} v4 Printer Driver", "rustdesk v4 Printer Driver")', 'line = line.replace(f"{app_name} v4 Printer Driver", "FoxxDesk v4 Printer Driver")')
+        text = text.replace('line = line.replace(f"{app_name} v4 Printer Driver", "foxxdesk v4 Printer Driver")', 'line = line.replace(f"{app_name} v4 Printer Driver", "FoxxDesk v4 Printer Driver")')
+        text = text.replace('line = line.replace(f"{app_name} v4 Printer Driver", "RustDesk v4 Printer Driver")', 'line = line.replace(f"{app_name} v4 Printer Driver", "FoxxDesk v4 Printer Driver")')
+        text = text.replace('RustDeskPrinterDriver', 'FoxxDeskPrinterDriver')
+        text = text.replace('rustdesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('foxxdesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('RustDesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+
+    if rel == "res/msi/Package/Language/Package.en-us.wxl":
+        text = text.replace('Install rustdesk Printer', 'Install FoxxDesk Printer')
+        text = text.replace('Install foxxdesk Printer', 'Install FoxxDesk Printer')
+        text = text.replace('Install RustDesk Printer', 'Install FoxxDesk Printer')
+        text = text.replace('rustdesk Printer', 'FoxxDesk Printer')
+        text = text.replace('foxxdesk Printer', 'FoxxDesk Printer')
+        text = text.replace('RustDesk Printer', 'FoxxDesk Printer')
+
+    if rel == "src/server/connection.rs":
+        text = text.replace('rustdesk://FsJob//Printer/', 'FoxxDesk://FsJob//Printer/')
+        text = text.replace('foxxdesk://FsJob//Printer/', 'FoxxDesk://FsJob//Printer/')
+        text = text.replace('RustDesk://FsJob//Printer/', 'FoxxDesk://FsJob//Printer/')
+
+    if rel == ".github/workflows/flutter-build.yml":
+        text = text.replace('./foxxdesk/drivers/RustDeskPrinterDriver', './foxxdesk/drivers/FoxxDeskPrinterDriver')
+        text = text.replace('foxxdesk\\drivers\\RustDeskPrinterDriver', 'foxxdesk\\drivers\\FoxxDeskPrinterDriver')
+        text = text.replace('foxxdesk/drivers/RustDeskPrinterDriver', 'foxxdesk/drivers/FoxxDeskPrinterDriver')
+        generic_block = (
+            '                $foxxPrinterDriverDir = ".\\foxxdesk\\drivers\\FoxxDeskPrinterDriver"\n'
+            '                $foxxPrinterDriverInf = Join-Path $foxxPrinterDriverDir "FoxxDeskPrinterDriver.inf"\n'
+            '                $sourcePrinterInf = Get-ChildItem -Path $foxxPrinterDriverDir -Filter "*PrinterDriver.inf" -File | Select-Object -First 1\n'
+            '                if ($sourcePrinterInf -and !(Test-Path $foxxPrinterDriverInf)) {\n'
+            '                    Move-Item -Force $sourcePrinterInf.FullName $foxxPrinterDriverInf\n'
+            '                }\n'
+            '                Get-ChildItem -Path $foxxPrinterDriverDir -Filter "*PrinterDriver.inf" -File | Where-Object { $_.Name -ne "FoxxDeskPrinterDriver.inf" } | Remove-Item -Force'
+        )
+        legacy_block_with_remove = (
+            '                if (Test-Path .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\RustDeskPrinterDriver.inf) {\n'
+            '                    Copy-Item -Force .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\RustDeskPrinterDriver.inf .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\FoxxDeskPrinterDriver.inf\n'
+            '                    Remove-Item -Force .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\RustDeskPrinterDriver.inf\n'
+            '                }'
+        )
+        legacy_block_copy_only = (
+            '                if (Test-Path .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\RustDeskPrinterDriver.inf) {\n'
+            '                    Copy-Item -Force .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\RustDeskPrinterDriver.inf .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\FoxxDeskPrinterDriver.inf\n'
+            '                }'
+        )
+        text = text.replace(legacy_block_with_remove, generic_block)
+        text = text.replace(legacy_block_copy_only, generic_block)
+        if '$foxxPrinterDriverInf = Join-Path $foxxPrinterDriverDir "FoxxDeskPrinterDriver.inf"' not in text:
+            marker = '                mv -Force .\\rustdesk_printer_driver_v4-1.4 ./foxxdesk/drivers/FoxxDeskPrinterDriver'
+            if marker in text:
+                text = text.replace(marker, marker + '\n' + generic_block, 1)
+        while generic_block + '\n' + generic_block in text:
+            text = text.replace(generic_block + '\n' + generic_block, generic_block)
+
+    if rel == "res/job.py":
+        text = text.replace(' or "RustDeskPrinterDriver" in root', '')
+        text = text.replace('"RustDeskPrinterDriver" in root or ', '')
+        text = text.replace('RustDeskPrinterDriver', 'FoxxDeskPrinterDriver')
+
+    if rel == "BRAND_CHANGELOG.md":
+        text = text.replace('`RuntimeBroker_rustdesk.exe`, `RustDeskPrinterDriver`', '`RuntimeBroker_foxxdesk.exe`, `FoxxDeskPrinterDriver`')
+        text = text.replace('RustDeskPrinterDriver', 'FoxxDeskPrinterDriver')
+
     return text
 
 def parse_args() -> argparse.Namespace:
@@ -1936,7 +2098,7 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--dry-run", action="store_true", help="Mostra o que seria alterado sem salvar arquivos do projeto, exceto relatório.")
     mode.add_argument("--apply", action="store_true", help="Aplica as alterações.")
     p.add_argument("--yes", action="store_true", help="Confirma automaticamente o modo --apply.")
-    p.add_argument("--server", default=None, help="Domínio/IP do servidor FoxxDesk. Se omitido, usa o DEFAULT_SERVER embutido na v21 e grava defaults ocultos em config.rs.")
+    p.add_argument("--server", default=None, help="Domínio/IP do servidor FoxxDesk. Se omitido, usa o DEFAULT_SERVER embutido na v22 e grava defaults ocultos em config.rs.")
     p.add_argument("--relay", default=None, help="Domínio/IP do relay FoxxDesk. Se omitido, usa o mesmo valor do server e grava em config.rs/workflow.")
     p.add_argument("--key", default=None, help="Chave pública do hbbs. Se omitida, usa DEFAULT_KEY e grava em config.rs/workflow.")
     p.add_argument("--maintainer-email", default=None, help="E-mail do mantenedor em metadados de pacote.")

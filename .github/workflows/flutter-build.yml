@@ -281,9 +281,13 @@ jobs:
                 Expand-Archive rustdesk_printer_driver_v4-1.4.zip -DestinationPath .
                 mkdir ./foxxdesk/drivers
                 mv -Force .\rustdesk_printer_driver_v4-1.4 ./foxxdesk/drivers/FoxxDeskPrinterDriver
-                if (Test-Path .\foxxdesk\drivers\FoxxDeskPrinterDriver\RustDeskPrinterDriver.inf) {
-                    Copy-Item -Force .\foxxdesk\drivers\FoxxDeskPrinterDriver\RustDeskPrinterDriver.inf .\foxxdesk\drivers\FoxxDeskPrinterDriver\FoxxDeskPrinterDriver.inf
+                $foxxPrinterDriverDir = ".\foxxdesk\drivers\FoxxDeskPrinterDriver"
+                $foxxPrinterDriverInf = Join-Path $foxxPrinterDriverDir "FoxxDeskPrinterDriver.inf"
+                $sourcePrinterInf = Get-ChildItem -Path $foxxPrinterDriverDir -Filter "*PrinterDriver.inf" -File | Select-Object -First 1
+                if ($sourcePrinterInf -and !(Test-Path $foxxPrinterDriverInf)) {
+                    Move-Item -Force $sourcePrinterInf.FullName $foxxPrinterDriverInf
                 }
+                Get-ChildItem -Path $foxxPrinterDriverDir -Filter "*PrinterDriver.inf" -File | Where-Object { $_.Name -ne "FoxxDeskPrinterDriver.inf" } | Remove-Item -Force
                 Expand-Archive printer_driver_adapter.zip -DestinationPath .
                 mv -Force .\printer_driver_adapter.dll ./foxxdesk
             } elseif ($checksum_driver -ne $downloadsum_driver.Hash) {
