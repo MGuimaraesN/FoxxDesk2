@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v19.py
+apply_foxxdesk_rebrand_all_files_no_zip_v21.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v19-embedded-server-relay-key-and-prefixed-output-no-zip-2026-07-01"
+SCRIPT_VERSION = "v21-printer-driver-paths-case-safe-2026-07-01"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -202,11 +202,13 @@ ALLOWED_FILES: List[str] = [
     'res/foxxdesk-link.desktop',
     'res/foxxdesk.desktop',
     'res/foxxdesk.service',
+    'res/msi/CustomActions/CustomActions.cpp',
     'res/msi/CustomActions/RemotePrinter.cpp',
     'res/msi/Package/Components/FoxxDesk.wxs',
     'res/msi/Package/Language/Package.en-us.wxl',
     'res/msi/Package/Language/WixExt_en-us.wxl',
     'res/msi/README.md',
+    'res/job.py',
     'res/msi/preprocess.py',
     'res/osx-dist.sh',
     'res/pacman_install',
@@ -229,6 +231,7 @@ ALLOWED_FILES: List[str] = [
     'src/core_main.rs',
     'src/custom_server.rs',
     'src/flutter.rs',
+    'src/flutter_ffi.rs',
     'src/hbbs_http/account.rs',
     'src/ipc.rs',
     'src/ipc/auth.rs',
@@ -1498,6 +1501,33 @@ def validate_build_safety(target: Path, report: Dict[str, Any]) -> None:
                 })
         except OSError:
             pass
+    rp = target / "libs/remote_printer/src/lib.rs"
+    if rp.exists():
+        try:
+            rtxt = normalize_lf(rp.read_text(encoding="utf-8", errors="ignore"))
+            if "drivers/RustDeskPrinterDriver/RustDeskPrinterDriver.inf" in rtxt:
+                report["pending"].append({
+                    "file": "libs/remote_printer/src/lib.rs",
+                    "message": "RD_DRIVER_INF_PATH ainda aponta para RustDeskPrinterDriver; v21 deve usar FoxxDeskPrinterDriver/FoxxDeskPrinterDriver.inf",
+                })
+            if '"foxxdesk v4 Printer Driver"' in rtxt:
+                report["pending"].append({
+                    "file": "libs/remote_printer/src/lib.rs",
+                    "message": "nome visível do driver ainda está minúsculo; v21 deve usar FoxxDesk v4 Printer Driver",
+                })
+        except OSError:
+            pass
+    rcpp = target / "res/msi/CustomActions/RemotePrinter.cpp"
+    if rcpp.exists():
+        try:
+            ctxt = normalize_lf(rcpp.read_text(encoding="utf-8", errors="ignore"))
+            if "drivers\\RustDeskPrinterDriver\\RustDeskPrinterDriver.inf" in ctxt:
+                report["pending"].append({
+                    "file": "res/msi/CustomActions/RemotePrinter.cpp",
+                    "message": "RD_DRIVER_INF_PATH do MSI ainda aponta para RustDeskPrinterDriver; v21 deve usar FoxxDeskPrinterDriver/FoxxDeskPrinterDriver.inf",
+                })
+        except OSError:
+            pass
     old_msi = target / "res/msi/Package/Components/RustDesk.wxs"
     new_msi = target / "res/msi/Package/Components/FoxxDesk.wxs"
     if old_msi.exists() and new_msi.exists() and "res/msi/Package/Components/RustDesk.wxs" not in report.get("changed_files", []):
@@ -1514,12 +1544,12 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
         f"- Data/hora: `{now}`",
         f"- Modo: `{'apply' if args.apply else 'dry-run'}`",
         f"- Projeto alvo: `{target}`",
-        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v19.py`",
+        "- Script: `apply_foxxdesk_rebrand_all_files_no_zip_v21.py`",
         f"- Versão do script: `{SCRIPT_VERSION}`",
         "- Payload/ZIP/manifesto externo: `não`",
         "- Espelhamento/substituição de arquivo inteiro por referência antiga: `não`",
         f"- Perfil: `{args.profile}`",
-        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável completo + MSI duplicate guard v18 + embedded server/relay/key defaults + prefixed Windows output v19`",
+        "- Estratégia: `patch-only; não espelha arquivos inteiros; full = TODOS os arquivos da allowlist + proteção de upstream + fixes Flutter Windows/bridge + portable packer path guard v17 + chmod executável completo + MSI duplicate guard v18 + embedded server/relay/key defaults ocultos + artefatos limpos v20 + ajustes seguros de driver/impressora v21`",
         "- Observação: se aparecerem apenas ~13 arquivos, você provavelmente executou a v9 safe ou usou --profile safe.",
         "",
         "## Valores dinâmicos",
@@ -1580,6 +1610,325 @@ def build_report(report: Dict[str, Any], args: argparse.Namespace, target: Path)
     return "\n".join(lines)
 
 
+# -----------------------------------------------------------------------------
+# V20 overrides
+# -----------------------------------------------------------------------------
+# As versões anteriores continuam acima para manter histórico e compatibilidade,
+# mas a V20 sobrescreve os pontos sensíveis aqui: defaults ocultos, artefatos
+# limpos e nomes Windows/MSI/Printer. Como Python resolve globais em runtime,
+# process_one_file() usa estas definições finais de patch_config_rs/patch_text.
+
+
+def patch_config_rs(rel: str, text: str, args: argparse.Namespace) -> str:  # type: ignore[override]
+    """Fixa server/relay/key no runtime sem expor no menu de configurações.
+
+    Mantém server/relay/key compilados, mas DEFAULT_SETTINGS fica vazio para o
+    menu de Network não exibir valores pré-preenchidos. O fallback acontece em
+    Config::get_option(), usado pelo runtime quando a configuração local está vazia.
+    """
+    if rel != "libs/hbb_common/src/config.rs":
+        return text
+
+    server = args.server or DEFAULT_SERVER
+    relay = args.relay or server
+    key = args.key or DEFAULT_KEY
+
+    if "pub const DEFAULT_RENDEZVOUS_SERVER:" not in text:
+        marker = "type KeyPair = (Vec<u8>, Vec<u8>);\n"
+        insert = (
+            f'\npub const DEFAULT_RENDEZVOUS_SERVER: &str = "{server}";\n'
+            f'pub const DEFAULT_RELAY_SERVER: &str = "{relay}";\n'
+            f'pub const DEFAULT_CUSTOM_CLIENT_KEY: &str = "{key}";\n'
+        )
+        if marker in text:
+            text = text.replace(marker, marker + insert, 1)
+
+    text = re.sub(
+        r'pub const DEFAULT_RENDEZVOUS_SERVER: &str = "[^"]*";',
+        f'pub const DEFAULT_RENDEZVOUS_SERVER: &str = "{server}";',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub const DEFAULT_RELAY_SERVER: &str = "[^"]*";',
+        f'pub const DEFAULT_RELAY_SERVER: &str = "{relay}";',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub const DEFAULT_CUSTOM_CLIENT_KEY: &str = "[^"]*";',
+        f'pub const DEFAULT_CUSTOM_CLIENT_KEY: &str = "{key}";',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub static ref PROD_RENDEZVOUS_SERVER: RwLock<String> = RwLock::new\("[^"]*"\.to_owned\(\)\);',
+        'pub static ref PROD_RENDEZVOUS_SERVER: RwLock<String> = RwLock::new(DEFAULT_RENDEZVOUS_SERVER.to_owned());',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub const RENDEZVOUS_SERVERS: &\[&str\] = &\["[^"]*"\];',
+        'pub const RENDEZVOUS_SERVERS: &[&str] = &[DEFAULT_RENDEZVOUS_SERVER];',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'pub const RS_PUB_KEY: &str = "[^"]*";',
+        'pub const RS_PUB_KEY: &str = DEFAULT_CUSTOM_CLIENT_KEY;',
+        text,
+        count=1,
+    )
+
+    # Remove DEFAULT_SETTINGS da V19, que fazia o menu exibir server/relay/key.
+    text = re.sub(
+        r'pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new\(HashMap::from\(\[.*?\]\)\);',
+        'pub static ref DEFAULT_SETTINGS: RwLock<HashMap<String, String>> = Default::default();',
+        text,
+        count=1,
+        flags=re.S,
+    )
+
+    get_option_new = '''    pub fn get_option(k: &str) -> String {
+        let value = get_or(
+            &OVERWRITE_SETTINGS,
+            &CONFIG2.read().unwrap().options,
+            &DEFAULT_SETTINGS,
+            k,
+        )
+        .unwrap_or_default();
+        if value.is_empty() && k == keys::OPTION_RELAY_SERVER {
+            return DEFAULT_RELAY_SERVER.to_string();
+        }
+        if value.is_empty() && k == "key" {
+            return DEFAULT_CUSTOM_CLIENT_KEY.to_string();
+        }
+        value
+    }'''
+    get_option_old_re = r'''    pub fn get_option\(k: &str\) -> String \{\n        get_or\(\n            &OVERWRITE_SETTINGS,\n            &CONFIG2\.read\(\)\.unwrap\(\)\.options,\n            &DEFAULT_SETTINGS,\n            k,\n        \)\n        \.unwrap_or_default\(\)\n    \}'''
+    get_option_v20_re = r'''    pub fn get_option\(k: &str\) -> String \{\n        let value = get_or\(\n            &OVERWRITE_SETTINGS,\n            &CONFIG2\.read\(\)\.unwrap\(\)\.options,\n            &DEFAULT_SETTINGS,\n            k,\n        \)\n        \.unwrap_or_default\(\);\n        if value\.is_empty\(\) && k == keys::OPTION_RELAY_SERVER \{\n            return DEFAULT_RELAY_SERVER\.to_string\(\);\n        \}\n        if value\.is_empty\(\) && k == "key" \{\n            return DEFAULT_CUSTOM_CLIENT_KEY\.to_string\(\);\n        \}\n        value\n    \}'''
+    text = re.sub(get_option_old_re, get_option_new, text, count=1)
+    text = re.sub(get_option_v20_re, get_option_new, text, count=1)
+    return text
+
+
+def patch_clean_windows_artifacts(rel: str, text: str, args: argparse.Namespace) -> str:
+    """Remove build/artefatos com host/key/relay expostos no nome."""
+    if rel == ".github/workflows/flutter-build.yml":
+        for key_name in (
+            "FOXXDESK_DEFAULT_SERVER",
+            "FOXXDESK_DEFAULT_RELAY",
+            "FOXXDESK_DEFAULT_KEY",
+            "FOXXDESK_CUSTOM_EXE_PREFIX",
+        ):
+            text = re.sub(rf'(?m)^\s{{2}}{key_name}:.*\n', '', text)
+        text = re.sub(r'(?m)^.*FOXXDESK_CUSTOM_EXE_PREFIX.*\n', '', text)
+        text = text.replace('foxxdesk-host.foxxdesk.mguimaraesn.dev.key.', 'foxxdesk-')
+        return text
+
+    if rel == "build.py":
+        text = re.sub(r'(?m)^FOXXDESK_CUSTOM_EXE_PREFIX\s*=.*\n', '', text)
+        text = re.sub(
+            r'''\n    if FOXXDESK_CUSTOM_EXE_PREFIX:\n        prefixed_installer = f'\./\{FOXXDESK_CUSTOM_EXE_PREFIX\}-\{version\}-install\.exe'\n        shutil\.copy2\(normal_installer, prefixed_installer\)\n        print\(f'output location: \{os\.path\.abspath\(os\.curdir\)\}/\{prefixed_installer\.lstrip\("\./"\)\}'\)''',
+            '',
+            text,
+            count=1,
+        )
+        return text
+    return text
+
+
+def patch_windows_install_runtime_and_printer_names(rel: str, text: str, args: argparse.Namespace) -> str:
+    """Ajusta RuntimeBroker, pasta AppData/install e nomes da impressora/driver."""
+    if rel in {"src/privacy_mode/win_topmost_window.rs", "res/msi/Package/Components/FoxxDesk.wxs", "res/msi/CustomActions/CustomActions.cpp", "libs/portable/src/main.rs"}:
+        text = text.replace("RuntimeBroker_rustdesk.exe", "RuntimeBroker_foxxdesk.exe")
+        text = text.replace("RuntimeBroker_foxxdesk.exe.exe", "RuntimeBroker_foxxdesk.exe")
+
+    if rel == "src/common.rs":
+        old = '''        if let Some(app_name) = config.get("app-name") {
+            hbb_common::config::APP_NAME.write().unwrap().clear();
+            hbb_common::config::APP_NAME
+                .write()
+                .unwrap()
+                .push_str(&app_name);
+        }'''
+        new = '''        if let Some(app_name) = config.get("app-name") {
+            let app_name = if app_name.eq_ignore_ascii_case("foxxdesk") {
+                "FoxxDesk".to_owned()
+            } else {
+                app_name
+            };
+            hbb_common::config::APP_NAME.write().unwrap().clear();
+            hbb_common::config::APP_NAME
+                .write()
+                .unwrap()
+                .push_str(&app_name);
+        }'''
+        if old in text and new not in text:
+            text = text.replace(old, new, 1)
+
+        old2 = '    if let Some(app_name) = data.remove("app-name") {\n        if let Some(app_name) = app_name.as_str() {\n            *config::APP_NAME.write().unwrap() = app_name.to_owned();\n        }\n    }'
+        new2 = '    if let Some(app_name) = data.remove("app-name") {\n        if let Some(app_name) = app_name.as_str() {\n            let app_name = if app_name.eq_ignore_ascii_case("foxxdesk") {\n                "FoxxDesk"\n            } else {\n                app_name\n            };\n            *config::APP_NAME.write().unwrap() = app_name.to_owned();\n        }\n    }'
+        if old2 in text and new2 not in text:
+            text = text.replace(old2, new2, 1)
+
+    if rel == "src/core_main.rs":
+        text = text.replace('remote_printer::install_update_printer(&crate::get_app_name())', 'remote_printer::install_update_printer("foxxdesk")')
+        text = text.replace('remote_printer::uninstall_printer(&crate::get_app_name())', 'remote_printer::uninstall_printer("foxxdesk")')
+
+    if rel == "src/flutter_ffi.rs":
+        text = text.replace('remote_printer::is_rd_printer_installed(&get_app_name())', 'remote_printer::is_rd_printer_installed("foxxdesk")')
+        text = text.replace('remote_printer::install_update_printer(&get_app_name())', 'remote_printer::install_update_printer("foxxdesk")')
+
+    if rel == "libs/remote_printer/src/lib.rs":
+        text = text.replace('"FoxxDesk v4 Printer Driver"', '"foxxdesk v4 Printer Driver"')
+        text = text.replace('"RustDesk v4 Printer Driver"', '"foxxdesk v4 Printer Driver"')
+
+    if rel == "libs/remote_printer/src/setup/driver.rs":
+        text = text.replace('"FoxxDesk v4 Printer Driver"', '"foxxdesk v4 Printer Driver"')
+        text = text.replace('"RustDesk v4 Printer Driver"', '"foxxdesk v4 Printer Driver"')
+        text = text.replace('FoxxDesk Printer', 'foxxdesk Printer')
+        text = text.replace('RustDesk Printer', 'foxxdesk Printer')
+
+    if rel == "res/msi/CustomActions/RemotePrinter.cpp":
+        text = text.replace('L"FoxxDesk Printer"', 'L"foxxdesk Printer"')
+        text = text.replace('L"RustDesk Printer"', 'L"foxxdesk Printer"')
+        text = text.replace('L"FoxxDesk v4 Printer Driver"', 'L"foxxdesk v4 Printer Driver"')
+        text = text.replace('L"RustDesk v4 Printer Driver"', 'L"foxxdesk v4 Printer Driver"')
+        text = text.replace('FoxxDesk Printer', 'foxxdesk Printer')
+        text = text.replace('RustDesk Printer', 'foxxdesk Printer')
+
+    if rel == "res/msi/preprocess.py":
+        text = text.replace('"FoxxDesk v4 Printer Driver"', '"foxxdesk v4 Printer Driver"')
+        text = text.replace('"RustDesk v4 Printer Driver"', '"foxxdesk v4 Printer Driver"')
+
+    if rel == "res/msi/Package/Language/Package.en-us.wxl":
+        text = text.replace('FoxxDesk Printer', 'foxxdesk Printer')
+        text = text.replace('RustDesk Printer', 'foxxdesk Printer')
+
+    if rel == "src/server/connection.rs":
+        text = text.replace('FoxxDesk://FsJob//Printer/', 'foxxdesk://FsJob//Printer/')
+        text = text.replace('RustDesk://FsJob//Printer/', 'foxxdesk://FsJob//Printer/')
+    return text
+
+
+
+def patch_printer_driver_details_v21(rel: str, text: str, args: argparse.Namespace) -> str:
+    """Ajustes finais v21 para driver/impressora sem mexer em upstream."""
+    if rel == "libs/remote_printer/src/lib.rs":
+        text = re.sub(
+            r'const RD_DRIVER_INF_PATH: &str = "drivers/(?:RustDesk|FoxxDesk|foxxdesk)PrinterDriver/(?:RustDesk|FoxxDesk|foxxdesk)PrinterDriver\.inf";',
+            'const RD_DRIVER_INF_PATH: &str = "drivers/FoxxDeskPrinterDriver/FoxxDeskPrinterDriver.inf";',
+            text,
+            count=1,
+        )
+        text = text.replace('"foxxdesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+        text = text.replace('"RustDesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+
+    if rel == "libs/remote_printer/src/setup/driver.rs":
+        text = text.replace('"foxxdesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+        text = text.replace('"RustDesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+        text = text.replace('foxxdesk Printer', 'FoxxDesk Printer')
+        text = text.replace('RustDesk Printer', 'FoxxDesk Printer')
+
+    if rel == "res/msi/CustomActions/RemotePrinter.cpp":
+        text = re.sub(
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\\\\\\\(?:RustDesk|FoxxDesk|foxxdesk)PrinterDriver\\\\\\\\(?:RustDesk|FoxxDesk|foxxdesk)PrinterDriver\.inf";',
+            lambda _m: r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\\\FoxxDeskPrinterDriver\\\\FoxxDeskPrinterDriver.inf";',
+            text,
+            count=1,
+        )
+        text = text.replace(
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\RustDeskPrinterDriver\\RustDeskPrinterDriver.inf";',
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\FoxxDeskPrinterDriver\\FoxxDeskPrinterDriver.inf";',
+        )
+        text = text.replace(
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\foxxdeskPrinterDriver\\foxxdeskPrinterDriver.inf";',
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\FoxxDeskPrinterDriver\\FoxxDeskPrinterDriver.inf";',
+        )
+        text = text.replace('L"foxxdesk Printer"', 'L"FoxxDesk Printer"')
+        text = text.replace('L"RustDesk Printer"', 'L"FoxxDesk Printer"')
+        text = text.replace('L"foxxdesk v4 Printer Driver"', 'L"FoxxDesk v4 Printer Driver"')
+        text = text.replace('L"RustDesk v4 Printer Driver"', 'L"FoxxDesk v4 Printer Driver"')
+        text = text.replace('foxxdesk Printer', 'FoxxDesk Printer')
+        text = text.replace('RustDesk Printer', 'FoxxDesk Printer')
+        text = text.replace('foxxdesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+        text = text.replace('RustDesk v4 Printer Driver', 'FoxxDesk v4 Printer Driver')
+
+    if rel == "res/msi/preprocess.py":
+        text = text.replace('"foxxdesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+        text = text.replace('"RustDesk v4 Printer Driver"', '"FoxxDesk v4 Printer Driver"')
+
+    if rel == "res/msi/Package/Language/Package.en-us.wxl":
+        text = text.replace('Install foxxdesk Printer', 'Install FoxxDesk Printer')
+        text = text.replace('Install RustDesk Printer', 'Install FoxxDesk Printer')
+        text = text.replace('foxxdesk Printer', 'FoxxDesk Printer')
+        text = text.replace('RustDesk Printer', 'FoxxDesk Printer')
+
+    if rel == "src/server/connection.rs":
+        text = text.replace('foxxdesk://FsJob//Printer/', 'FoxxDesk://FsJob//Printer/')
+        text = text.replace('RustDesk://FsJob//Printer/', 'FoxxDesk://FsJob//Printer/')
+
+    if rel == ".github/workflows/flutter-build.yml":
+        # O ZIP upstream ainda se chama rustdesk_printer_driver_v4; só o destino empacotado muda.
+        text = text.replace('./foxxdesk/drivers/RustDeskPrinterDriver', './foxxdesk/drivers/FoxxDeskPrinterDriver')
+        text = text.replace('foxxdesk\\drivers\\RustDeskPrinterDriver', 'foxxdesk\\drivers\\FoxxDeskPrinterDriver')
+        text = text.replace('foxxdesk/drivers/RustDeskPrinterDriver', 'foxxdesk/drivers/FoxxDeskPrinterDriver')
+        mv_line = '                mv -Force .\\rustdesk_printer_driver_v4-1.4 ./foxxdesk/drivers/FoxxDeskPrinterDriver'
+        compat_block = (
+            '                if (Test-Path .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\RustDeskPrinterDriver.inf) {\n'
+            '                    Copy-Item -Force .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\RustDeskPrinterDriver.inf .\\foxxdesk\\drivers\\FoxxDeskPrinterDriver\\FoxxDeskPrinterDriver.inf\n'
+            '                }'
+        )
+        if mv_line in text and 'FoxxDeskPrinterDriver\\FoxxDeskPrinterDriver.inf' not in text:
+            text = text.replace(mv_line, mv_line + '\n' + compat_block, 1)
+
+    if rel == "res/job.py":
+        text = text.replace(
+            'is_signed_dir = "RustDeskPrinterDriver" in root or "usbmmidd_v2" in root',
+            'is_signed_dir = "FoxxDeskPrinterDriver" in root or "RustDeskPrinterDriver" in root or "usbmmidd_v2" in root',
+        )
+        text = text.replace(
+            'is_signed_dir = "foxxdeskPrinterDriver" in root or "RustDeskPrinterDriver" in root or "usbmmidd_v2" in root',
+            'is_signed_dir = "FoxxDeskPrinterDriver" in root or "RustDeskPrinterDriver" in root or "usbmmidd_v2" in root',
+        )
+    return text
+
+def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:  # type: ignore[override]
+    text = normalize_lf(text)
+    text = patch_cargo_lock(rel, text)
+    text = patch_cargo_toml(rel, text)
+    text = patch_build_py(rel, text, args)
+    text = patch_build_py_bridge_compat(rel, text)
+    text = patch_config_rs(rel, text, args)
+    text = patch_server_defaults(rel, text, args)
+    text = patch_clean_windows_artifacts(rel, text, args)
+    text = patch_windows_install_runtime_and_printer_names(rel, text, args)
+    text = patch_package_scripts(rel, text, args)
+    text = patch_workflow_build_internals(rel, text)
+    text = patch_upstream_dependency_branches(rel, text)
+    text = patch_codegen_submodule_guard(rel, text)
+    text = patch_bridge_workflow_compat(rel, text)
+    text = patch_windows_flutter_dart_fixes(rel, text)
+    text = patch_portable_packer_robustness(rel, text)
+    if args.profile == "full" and not rel.startswith(".github/workflows/"):
+        text = safe_brand_replacements(text)
+        text = patch_upstream_dependency_branches(rel, text)
+        text = patch_windows_install_runtime_and_printer_names(rel, text, args)
+    if not rel.startswith(".github/workflows/"):
+        text = text.replace("/usr/share/rustdesk/files/", "/usr/share/foxxdesk/files/")
+        text = text.replace("/usr/share/rustdesk/", "/usr/share/foxxdesk/")
+        text = text.replace("/etc/systemd/system/rustdesk.service", "/etc/systemd/system/foxxdesk.service")
+        text = text.replace("rustdesk.service", "foxxdesk.service")
+        text = text.replace("rustdesk.desktop", "foxxdesk.desktop")
+        text = text.replace("rustdesk-link.desktop", "foxxdesk-link.desktop")
+    text = patch_workflow_build_internals(rel, text)
+    text = patch_clean_windows_artifacts(rel, text, args)
+    text = patch_windows_install_runtime_and_printer_names(rel, text, args)
+    text = patch_portable_packer_robustness(rel, text)
+    text = patch_printer_driver_details_v21(rel, text, args)
+    return text
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Aplica rebrand FoxxDesk em todos os arquivos da allowlist, patch-only, sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.")
     p.add_argument("--target", default="./", help="Pasta raiz do projeto alvo. Padrão: ./")
@@ -1587,7 +1936,7 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--dry-run", action="store_true", help="Mostra o que seria alterado sem salvar arquivos do projeto, exceto relatório.")
     mode.add_argument("--apply", action="store_true", help="Aplica as alterações.")
     p.add_argument("--yes", action="store_true", help="Confirma automaticamente o modo --apply.")
-    p.add_argument("--server", default=None, help="Domínio/IP do servidor FoxxDesk. Se omitido, usa o DEFAULT_SERVER embutido na v19 e grava em config.rs/workflow.")
+    p.add_argument("--server", default=None, help="Domínio/IP do servidor FoxxDesk. Se omitido, usa o DEFAULT_SERVER embutido na v21 e grava defaults ocultos em config.rs.")
     p.add_argument("--relay", default=None, help="Domínio/IP do relay FoxxDesk. Se omitido, usa o mesmo valor do server e grava em config.rs/workflow.")
     p.add_argument("--key", default=None, help="Chave pública do hbbs. Se omitida, usa DEFAULT_KEY e grava em config.rs/workflow.")
     p.add_argument("--maintainer-email", default=None, help="E-mail do mantenedor em metadados de pacote.")
