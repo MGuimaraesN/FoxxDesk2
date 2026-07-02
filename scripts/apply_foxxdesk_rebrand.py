@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v22-windows-appdata-driver-cleanup-2026-07-02"
+SCRIPT_VERSION = "v23-fix-projectdirs-app-name-lifetime-2026-07-02"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -1537,6 +1537,18 @@ def validate_build_safety(target: Path, report: Dict[str, Any]) -> None:
         })
 
 
+    # V23 validation: não pode sobrar borrow temporário em ProjectDirs::from.
+    cfg = target / "libs/hbb_common/src/config.rs"
+    if cfg.exists():
+        try:
+            cfg_text = cfg.read_text(encoding="utf-8", errors="ignore")
+            if "&APP_NAME.read().unwrap()" in cfg_text and "ProjectDirs::from" in cfg_text:
+                bad_region = cfg_text[cfg_text.find("ProjectDirs::from") : cfg_text.find("ProjectDirs::from") + 500]
+                if "&APP_NAME.read().unwrap()" in bad_region:
+                    report["pending"].append({"file": "libs/hbb_common/src/config.rs", "message": "V23: ainda existe &APP_NAME.read().unwrap() dentro de ProjectDirs::from; isso causa Rust E0716"})
+        except Exception:
+            pass
+
     # V22 validations: no old driver names in source-controlled printer paths and no lowercase Windows LocalAppData folder names.
     for rel in [
         "libs/remote_printer/src/lib.rs",
@@ -1961,6 +1973,7 @@ def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:  # type: i
     text = patch_portable_packer_robustness(rel, text)
     text = patch_printer_driver_details_v21(rel, text, args)
     text = patch_windows_appdata_and_driver_cleanup_v22(rel, text, args)
+    text = patch_config_projectdirs_app_name_lifetime_v23(rel, text, args)
     return text
 
 
@@ -1980,10 +1993,10 @@ def patch_windows_appdata_and_driver_cleanup_v22(rel: str, text: str, args: argp
 
     if rel == "libs/hbb_common/src/config.rs":
         old = 'directories_next::ProjectDirs::from("", &org, &APP_NAME.read().unwrap())'
-        new = 'directories_next::ProjectDirs::from(\n                    "",\n                    &org,\n                    if cfg!(target_os = "windows") {\n                        "FoxxDesk"\n                    } else {\n                        &APP_NAME.read().unwrap()\n                    },\n                )'
+        new = '({\n                let project_app_name = if cfg!(target_os = "windows") {\n                    "FoxxDesk".to_owned()\n                } else {\n                    APP_NAME.read().unwrap().clone()\n                };\n                directories_next::ProjectDirs::from("", &org, &project_app_name)\n            })'
         pos = text.find('directories_next::ProjectDirs::from')
         window = text[max(0, pos - 200):pos + 500] if pos >= 0 else ''
-        if old in text and 'if cfg!(target_os = "windows") {' not in window:
+        if old in text and 'let project_app_name = ' not in window:
             text = text.replace(old, new, 1)
 
     if rel in {"build.py", ".github/workflows/flutter-build.yml"}:
@@ -2091,6 +2104,62 @@ def patch_windows_appdata_and_driver_cleanup_v22(rel: str, text: str, args: argp
 
     return text
 
+
+
+def patch_config_projectdirs_app_name_lifetime_v23(rel: str, text: str, args: argparse.Namespace) -> str:
+    """Corrige E0716 causado pela V22 em libs/hbb_common/src/config.rs.
+
+    A V22 tentou forçar AppData\\Local\\FoxxDesk passando &APP_NAME.read().unwrap()
+    dentro do terceiro argumento de ProjectDirs::from(). Em Rust 1.75 isso cria
+    um RwLockReadGuard temporário e o compilador acusa E0716. A V23 materializa
+    o app name em String antes da chamada.
+    """
+    if rel != "libs/hbb_common/src/config.rs":
+        return text
+
+    broken_v22 = """if let Some(project) =
+                directories_next::ProjectDirs::from(
+                    "",
+                    &org,
+                    if cfg!(target_os = "windows") {
+                        "FoxxDesk"
+                    } else {
+                        &APP_NAME.read().unwrap()
+                    },
+                )
+            {"""
+    fixed_v23 = """let project_app_name = if cfg!(target_os = "windows") {
+                "FoxxDesk".to_owned()
+            } else {
+                APP_NAME.read().unwrap().clone()
+            };
+            if let Some(project) =
+                directories_next::ProjectDirs::from("", &org, &project_app_name)
+            {"""
+    if broken_v22 in text:
+        text = text.replace(broken_v22, fixed_v23, 1)
+
+    one_line = 'if let Some(project) = directories_next::ProjectDirs::from("", &org, &APP_NAME.read().unwrap()) {'
+    if one_line in text:
+        text = text.replace(
+            one_line,
+            'let project_app_name = APP_NAME.read().unwrap().clone();\n            if let Some(project) = directories_next::ProjectDirs::from("", &org, &project_app_name) {',
+            1,
+        )
+
+    pattern = re.compile(
+        r'if let Some\(project\) =\s*directories_next::ProjectDirs::from\(\s*"",\s*&org,\s*&APP_NAME\.read\(\)\.unwrap\(\)\s*\)\s*\{',
+        re.MULTILINE,
+    )
+    if pattern.search(text):
+        text = pattern.sub(
+            'let project_app_name = APP_NAME.read().unwrap().clone();\n            if let Some(project) = directories_next::ProjectDirs::from("", &org, &project_app_name) {',
+            text,
+            count=1,
+        )
+
+    return text
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Aplica rebrand FoxxDesk em todos os arquivos da allowlist, patch-only, sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.")
     p.add_argument("--target", default="./", help="Pasta raiz do projeto alvo. Padrão: ./")
@@ -2098,7 +2167,7 @@ def parse_args() -> argparse.Namespace:
     mode.add_argument("--dry-run", action="store_true", help="Mostra o que seria alterado sem salvar arquivos do projeto, exceto relatório.")
     mode.add_argument("--apply", action="store_true", help="Aplica as alterações.")
     p.add_argument("--yes", action="store_true", help="Confirma automaticamente o modo --apply.")
-    p.add_argument("--server", default=None, help="Domínio/IP do servidor FoxxDesk. Se omitido, usa o DEFAULT_SERVER embutido na v22 e grava defaults ocultos em config.rs.")
+    p.add_argument("--server", default=None, help="Domínio/IP do servidor FoxxDesk. Se omitido, usa o DEFAULT_SERVER embutido na v23 e grava defaults ocultos em config.rs.")
     p.add_argument("--relay", default=None, help="Domínio/IP do relay FoxxDesk. Se omitido, usa o mesmo valor do server e grava em config.rs/workflow.")
     p.add_argument("--key", default=None, help="Chave pública do hbbs. Se omitida, usa DEFAULT_KEY e grava em config.rs/workflow.")
     p.add_argument("--maintainer-email", default=None, help="E-mail do mantenedor em metadados de pacote.")

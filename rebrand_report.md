@@ -1,10 +1,10 @@
 # Relatório de rebrand FoxxDesk
 
-- Data/hora: `2026-07-02 07:20:26`
+- Data/hora: `2026-07-02 08:19:14`
 - Modo: `apply`
 - Projeto alvo: `/home/mateus/_Projects/FoxxDesk2`
 - Script: `apply_foxxdesk_rebrand_all_files_no_zip_v22.py`
-- Versão do script: `v22-windows-appdata-driver-cleanup-2026-07-02`
+- Versão do script: `v23-fix-projectdirs-app-name-lifetime-2026-07-02`
 - Payload/ZIP/manifesto externo: `não`
 - Espelhamento/substituição de arquivo inteiro por referência antiga: `não`
 - Perfil: `full`
@@ -23,21 +23,17 @@
 
 - Arquivos permitidos na allowlist: `265`
 - Arquivos analisados: `282`
-- Arquivos alterados: `5`
-- Arquivos já aplicados/sem mudança: `268`
+- Arquivos alterados: `1`
+- Arquivos já aplicados/sem mudança: `272`
 - Arquivos esperados não encontrados: `4`
 - Arquivos ignorados: `4`
 - Renomeações/cópias criadas: `0`
 - Pendências: `0`
-- Backup: `/home/mateus/_Projects/FoxxDesk2/.rebrand_backup/20260702_072024`
+- Backup: `/home/mateus/_Projects/FoxxDesk2/.rebrand_backup/20260702_081912`
 
 ## Arquivos alterados
 
-- `.github/workflows/flutter-build.yml`
 - `libs/hbb_common/src/config.rs`
-- `libs/portable/src/main.rs`
-- `res/job.py`
-- `src/platform/windows.rs`
 
 ## Arquivos renomeados/copiados
 
@@ -61,11 +57,7 @@ Nenhum.
 
 | Status | Arquivo | Linha | Ação | Mensagem |
 |---|---|---:|---|---|
-| alterado | `.github/workflows/flutter-build.yml` | 284 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
-| alterado | `libs/hbb_common/src/config.rs` | 802 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
-| alterado | `libs/portable/src/main.rs` | 20 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
-| alterado | `res/job.py` | 208 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
-| alterado | `src/platform/windows.rs` | 1231 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
+| alterado | `libs/hbb_common/src/config.rs` | 801 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
 
 ## Pendências
 

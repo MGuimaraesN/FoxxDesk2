@@ -798,16 +798,13 @@ impl Config {
             #[cfg(target_os = "macos")]
             let org = ORG.read().unwrap().clone();
             // /var/root for root
+            let project_app_name = if cfg!(target_os = "windows") {
+                "FoxxDesk".to_owned()
+            } else {
+                APP_NAME.read().unwrap().clone()
+            };
             if let Some(project) =
-                directories_next::ProjectDirs::from(
-                    "",
-                    &org,
-                    if cfg!(target_os = "windows") {
-                        "FoxxDesk"
-                    } else {
-                        &APP_NAME.read().unwrap()
-                    },
-                )
+                directories_next::ProjectDirs::from("", &org, &project_app_name)
             {
                 let mut path = patch(project.config_dir().to_path_buf());
                 path.push(p);
