@@ -1,10 +1,10 @@
 # Relatório de rebrand FoxxDesk
 
-- Data/hora: `2026-07-02 08:19:14`
+- Data/hora: `2026-07-02 11:41:57`
 - Modo: `apply`
 - Projeto alvo: `/home/mateus/_Projects/FoxxDesk2`
 - Script: `apply_foxxdesk_rebrand_all_files_no_zip_v22.py`
-- Versão do script: `v23-fix-projectdirs-app-name-lifetime-2026-07-02`
+- Versão do script: `v24-on-demand-elevation-and-printer-brand-cleanup-2026-07-02`
 - Payload/ZIP/manifesto externo: `não`
 - Espelhamento/substituição de arquivo inteiro por referência antiga: `não`
 - Perfil: `full`
@@ -21,19 +21,23 @@
 
 ## Resumo
 
-- Arquivos permitidos na allowlist: `265`
-- Arquivos analisados: `282`
-- Arquivos alterados: `1`
-- Arquivos já aplicados/sem mudança: `272`
+- Arquivos permitidos na allowlist: `267`
+- Arquivos analisados: `284`
+- Arquivos alterados: `5`
+- Arquivos já aplicados/sem mudança: `270`
 - Arquivos esperados não encontrados: `4`
 - Arquivos ignorados: `4`
 - Renomeações/cópias criadas: `0`
 - Pendências: `0`
-- Backup: `/home/mateus/_Projects/FoxxDesk2/.rebrand_backup/20260702_081912`
+- Backup: `/home/mateus/_Projects/FoxxDesk2/.rebrand_backup/20260702_114156`
 
 ## Arquivos alterados
 
-- `libs/hbb_common/src/config.rs`
+- `.github/workflows/flutter-build.yml`
+- `flutter/windows/runner/runner.exe.manifest`
+- `res/manifest.xml`
+- `src/core_main.rs`
+- `src/server/connection.rs`
 
 ## Arquivos renomeados/copiados
 
@@ -57,7 +61,11 @@ Nenhum.
 
 | Status | Arquivo | Linha | Ação | Mensagem |
 |---|---|---:|---|---|
-| alterado | `libs/hbb_common/src/config.rs` | 801 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
+| alterado | `.github/workflows/flutter-build.yml` | 270 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
+| alterado | `flutter/windows/runner/runner.exe.manifest` | 20 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
+| alterado | `res/manifest.xml` | 36 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
+| alterado | `src/core_main.rs` | 144 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
+| alterado | `src/server/connection.rs` | 5146 | aplicar regras standalone de rebrand | conteúdo textual mudou por regra segura; sem payload/ZIP |
 
 ## Pendências
 

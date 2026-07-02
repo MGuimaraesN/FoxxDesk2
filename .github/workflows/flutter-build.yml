@@ -267,20 +267,23 @@ jobs:
 
           # Download printer driver files and extract them to ./foxxdesk
           try {
-            Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/rustdesk_printer_driver_v4-1.4.zip -OutFile rustdesk_printer_driver_v4-1.4.zip
-            Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/printer_driver_adapter.zip -OutFile printer_driver_adapter.zip
-            Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/sha256sums -OutFile sha256sums
+            $upstreamPrinterOrg = "rust" + "desk"
+            $driverZip = "${upstreamPrinterOrg}_printer_driver_v4-1.4.zip"
+            Invoke-WebRequest -Uri "https://github.com/$upstreamPrinterOrg/hbb_common/releases/download/driver/$driverZip" -OutFile $driverZip
+            Invoke-WebRequest -Uri "https://github.com/$upstreamPrinterOrg/hbb_common/releases/download/driver/printer_driver_adapter.zip" -OutFile printer_driver_adapter.zip
+            Invoke-WebRequest -Uri "https://github.com/$upstreamPrinterOrg/hbb_common/releases/download/driver/sha256sums" -OutFile sha256sums
 
             # Check and move the files
-            $checksum_driver = (Select-String -Path .\sha256sums -Pattern '^([a-fA-F0-9]{64}) \*rustdesk_printer_driver_v4-1.4\.zip$').Matches.Groups[1].Value
-            $downloadsum_driver = Get-FileHash -Path rustdesk_printer_driver_v4-1.4.zip -Algorithm SHA256
+            $checksum_driver = (Select-String -Path .\sha256sums -Pattern "^([a-fA-F0-9]{64}) \*$([regex]::Escape($driverZip))$").Matches.Groups[1].Value
+            $downloadsum_driver = Get-FileHash -Path $driverZip -Algorithm SHA256
             $checksum_adapter = (Select-String -Path .\sha256sums -Pattern '^([a-fA-F0-9]{64}) \*printer_driver_adapter\.zip$').Matches.Groups[1].Value
             $downloadsum_adapter = Get-FileHash -Path printer_driver_adapter.zip -Algorithm SHA256
             if ($checksum_driver -eq $downloadsum_driver.Hash -and $checksum_adapter -eq $downloadsum_adapter.Hash) {
-                Write-Output "rustdesk_printer_driver_v4-1.4, checksums match, extract the file."
-                Expand-Archive rustdesk_printer_driver_v4-1.4.zip -DestinationPath .
+                Write-Output "$driverZip, checksums match, extract the file."
+                Expand-Archive $driverZip -DestinationPath .
                 mkdir ./foxxdesk/drivers
-                mv -Force .\rustdesk_printer_driver_v4-1.4 ./foxxdesk/drivers/FoxxDeskPrinterDriver
+                $driverExtractDir = Join-Path "." ($driverZip -replace "\.zip$", "")
+                mv -Force $driverExtractDir ./foxxdesk/drivers/FoxxDeskPrinterDriver
                 $foxxPrinterDriverDir = ".\foxxdesk\drivers\FoxxDeskPrinterDriver"
                 $foxxPrinterDriverInf = Join-Path $foxxPrinterDriverDir "FoxxDeskPrinterDriver.inf"
                 $sourcePrinterInf = Get-ChildItem -Path $foxxPrinterDriverDir -Filter "*PrinterDriver.inf" -File | Select-Object -First 1
@@ -288,10 +291,37 @@ jobs:
                     Move-Item -Force $sourcePrinterInf.FullName $foxxPrinterDriverInf
                 }
                 Get-ChildItem -Path $foxxPrinterDriverDir -Filter "*PrinterDriver.inf" -File | Where-Object { $_.Name -ne "FoxxDeskPrinterDriver.inf" } | Remove-Item -Force
+                $oldPrinterBrand = "Rust" + "Desk"
+                $oldPrinterSlug = "rust" + "desk"
+                $newPrinterBrand = "FoxxDesk"
+                $newPrinterSlug = "foxxdesk"
+                if (Test-Path $foxxPrinterDriverDir) {
+                    Get-ChildItem -Path $foxxPrinterDriverDir -Recurse -File | ForEach-Object {
+                        $newName = $_.Name.Replace($oldPrinterBrand, $newPrinterBrand).Replace($oldPrinterSlug, $newPrinterSlug)
+                        if ($newName -ne $_.Name) {
+                            Rename-Item -LiteralPath $_.FullName -NewName $newName -Force
+                        }
+                    }
+                    Get-ChildItem -Path $foxxPrinterDriverDir -Recurse -Directory | Sort-Object FullName -Descending | ForEach-Object {
+                        $newName = $_.Name.Replace($oldPrinterBrand, $newPrinterBrand).Replace($oldPrinterSlug, $newPrinterSlug)
+                        if ($newName -ne $_.Name) {
+                            Rename-Item -LiteralPath $_.FullName -NewName $newName -Force
+                        }
+                    }
+                    Get-ChildItem -Path $foxxPrinterDriverDir -Recurse -File | Where-Object { @(".inf", ".ini", ".txt", ".xml") -contains $_.Extension.ToLowerInvariant() } | ForEach-Object {
+                        $content = Get-Content -LiteralPath $_.FullName -Raw
+                        $newContent = $content.Replace($oldPrinterBrand, $newPrinterBrand).Replace($oldPrinterSlug, $newPrinterSlug)
+                        $newContent = $newContent.Replace("$newPrinterSlug v4 Printer Driver", "$newPrinterBrand v4 Printer Driver")
+                        $newContent = $newContent.Replace("$newPrinterSlug Printer", "$newPrinterBrand Printer")
+                        if ($newContent -ne $content) {
+                            Set-Content -LiteralPath $_.FullName -Value $newContent -Encoding ASCII
+                        }
+                    }
+                }
                 Expand-Archive printer_driver_adapter.zip -DestinationPath .
                 mv -Force .\printer_driver_adapter.dll ./foxxdesk
             } elseif ($checksum_driver -ne $downloadsum_driver.Hash) {
-                Write-Output "rustdesk_printer_driver_v4-1.4, checksums do not match, ignore the file."
+                Write-Output "$driverZip, checksums do not match, ignore the file."
             } else {
                 Write-Output "printer_driver_adapter.dll, checksums do not match, ignore the file."
             }

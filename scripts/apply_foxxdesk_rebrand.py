@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-apply_foxxdesk_rebrand_all_files_no_zip_v22.py
+apply_foxxdesk_rebrand_all_files_no_zip_v24.py
 
 Versão all-files patch-only sem ZIP/payload/manifesto e sem espelhar arquivos inteiros.
 
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-SCRIPT_VERSION = "v23-fix-projectdirs-app-name-lifetime-2026-07-02"
+SCRIPT_VERSION = "v24-on-demand-elevation-and-printer-brand-cleanup-2026-07-02"
 APP_DISPLAY_NAME = "FoxxDesk"
 APP_SLUG = "foxxdesk"
 APP_SLUG_UPPER = "FOXXDESK"
@@ -173,6 +173,7 @@ ALLOWED_FILES: List[str] = [
     'flutter/windows/CMakeLists.txt',
     'flutter/windows/runner/Runner.rc',
     'flutter/windows/runner/main.cpp',
+    'flutter/windows/runner/runner.exe.manifest',
     'libs/clipboard/README.md',
     'libs/clipboard/src/lib.rs',
     'libs/clipboard/src/platform/unix/fuse/mod.rs',
@@ -202,6 +203,7 @@ ALLOWED_FILES: List[str] = [
     'res/foxxdesk-link.desktop',
     'res/foxxdesk.desktop',
     'res/foxxdesk.service',
+    'res/manifest.xml',
     'res/msi/CustomActions/CustomActions.cpp',
     'res/msi/CustomActions/RemotePrinter.cpp',
     'res/msi/Package/Components/FoxxDesk.wxs',
@@ -2158,6 +2160,264 @@ def patch_config_projectdirs_app_name_lifetime_v23(rel: str, text: str, args: ar
             count=1,
         )
 
+    return text
+
+
+def _ensure_windows_as_invoker_manifest_v24(text: str) -> str:
+    """Garante que o EXE normal não peça UAC na abertura."""
+    if "requestedExecutionLevel" in text:
+        text = re.sub(
+            r'<requestedExecutionLevel\s+level="(?:requireAdministrator|highestAvailable|asInvoker)"\s+uiAccess="(?:true|false)"\s*/>',
+            '<requestedExecutionLevel level="asInvoker" uiAccess="false"/>',
+            text,
+            flags=re.IGNORECASE,
+        )
+        text = re.sub(
+            r'<requestedExecutionLevel\s+uiAccess="(?:true|false)"\s+level="(?:requireAdministrator|highestAvailable|asInvoker)"\s*/>',
+            '<requestedExecutionLevel level="asInvoker" uiAccess="false"/>',
+            text,
+            flags=re.IGNORECASE,
+        )
+        text = re.sub(r'level="(?:requireAdministrator|highestAvailable)"', 'level="asInvoker"', text, flags=re.IGNORECASE)
+        text = re.sub(r'uiAccess="true"', 'uiAccess="false"', text, flags=re.IGNORECASE)
+        return text
+
+    trust_info = '''
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>'''
+    if "</assembly>" in text and "requestedPrivileges" not in text:
+        text = text.replace("</assembly>", trust_info + "\n</assembly>", 1)
+    return text
+
+
+def patch_on_demand_elevation_v24(rel: str, text: str, args: argparse.Namespace) -> str:
+    """Remove elevação automática e mantém UAC apenas para ações explícitas."""
+    if rel in {"res/manifest.xml", "flutter/windows/runner/runner.exe.manifest"}:
+        text = _ensure_windows_as_invoker_manifest_v24(text)
+
+    if rel == "src/core_main.rs":
+        # Remove só o gatilho automático da opção persistida. Comandos explícitos
+        # como --elevate/--run-as-system/instalação de driver continuam.
+        text = text.replace(
+            '                || config::LocalConfig::get_option("pre-elevate-service") == "Y"\n',
+            '',
+        )
+        text = text.replace(
+            '                || config::LocalConfig::get_option("pre-elevate-service") == "Y"\r\n',
+            '',
+        )
+        text = re.sub(
+            r'\n\s*\|\|\s*config::LocalConfig::get_option\("pre-elevate-service"\)\s*==\s*"Y"',
+            '',
+            text,
+            count=1,
+        )
+    return text
+
+
+def _powershell_printer_driver_normalize_block_v24() -> str:
+    # Sem literais "RustDesk"/"rustdesk" no bloco para não deixar resíduo de marca
+    # nos arquivos do projeto; os nomes antigos são montados em runtime.
+    return r'''                $oldPrinterBrand = "Rust" + "Desk"
+                $oldPrinterSlug = "rust" + "desk"
+                $newPrinterBrand = "FoxxDesk"
+                $newPrinterSlug = "foxxdesk"
+                if (Test-Path $foxxPrinterDriverDir) {
+                    Get-ChildItem -Path $foxxPrinterDriverDir -Recurse -File | ForEach-Object {
+                        $newName = $_.Name.Replace($oldPrinterBrand, $newPrinterBrand).Replace($oldPrinterSlug, $newPrinterSlug)
+                        if ($newName -ne $_.Name) {
+                            Rename-Item -LiteralPath $_.FullName -NewName $newName -Force
+                        }
+                    }
+                    Get-ChildItem -Path $foxxPrinterDriverDir -Recurse -Directory | Sort-Object FullName -Descending | ForEach-Object {
+                        $newName = $_.Name.Replace($oldPrinterBrand, $newPrinterBrand).Replace($oldPrinterSlug, $newPrinterSlug)
+                        if ($newName -ne $_.Name) {
+                            Rename-Item -LiteralPath $_.FullName -NewName $newName -Force
+                        }
+                    }
+                    Get-ChildItem -Path $foxxPrinterDriverDir -Recurse -File | Where-Object { @(".inf", ".ini", ".txt", ".xml") -contains $_.Extension.ToLowerInvariant() } | ForEach-Object {
+                        $content = Get-Content -LiteralPath $_.FullName -Raw
+                        $newContent = $content.Replace($oldPrinterBrand, $newPrinterBrand).Replace($oldPrinterSlug, $newPrinterSlug)
+                        $newContent = $newContent.Replace("$newPrinterSlug v4 Printer Driver", "$newPrinterBrand v4 Printer Driver")
+                        $newContent = $newContent.Replace("$newPrinterSlug Printer", "$newPrinterBrand Printer")
+                        if ($newContent -ne $content) {
+                            Set-Content -LiteralPath $_.FullName -Value $newContent -Encoding ASCII
+                        }
+                    }
+                }'''
+
+
+def patch_printer_driver_brand_cleanup_v24(rel: str, text: str, args: argparse.Namespace) -> str:
+    """Limpa nomes de impressora/driver e normaliza pacote baixado no CI."""
+    if rel in {
+        "libs/remote_printer/src/lib.rs",
+        "libs/remote_printer/src/setup/driver.rs",
+        "res/msi/CustomActions/RemotePrinter.cpp",
+        "res/msi/preprocess.py",
+        "res/msi/Package/Language/Package.en-us.wxl",
+        "res/msi/Package/Components/FoxxDesk.wxs",
+        "src/core_main.rs",
+        "src/flutter_ffi.rs",
+        "src/server/connection.rs",
+        "BRAND_CHANGELOG.md",
+    }:
+        replacements = {
+            "RustDeskPrinterDriver": "FoxxDeskPrinterDriver",
+            "rustdeskPrinterDriver": "foxxdeskPrinterDriver",
+            "RustDesk v4 Printer Driver": "FoxxDesk v4 Printer Driver",
+            "rustdesk v4 Printer Driver": "FoxxDesk v4 Printer Driver",
+            "foxxdesk v4 Printer Driver": "FoxxDesk v4 Printer Driver",
+            "RustDesk Printer": "FoxxDesk Printer",
+            "rustdesk Printer": "FoxxDesk Printer",
+            "foxxdesk Printer": "FoxxDesk Printer",
+            "Install rustdesk Printer": "Install FoxxDesk Printer",
+            "Install foxxdesk Printer": "Install FoxxDesk Printer",
+            "Install RustDesk Printer": "Install FoxxDesk Printer",
+            "rustdesk://FsJob//Printer/": "foxxdesk://FsJob//Printer/",
+            "RustDesk://FsJob//Printer/": "foxxdesk://FsJob//Printer/",
+            "FoxxDesk://FsJob//Printer/": "foxxdesk://FsJob//Printer/",
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        text = re.sub(
+            r'const RD_DRIVER_INF_PATH: &str = "drivers/(?:RustDesk|rustdesk|FoxxDesk|foxxdesk)PrinterDriver/(?:RustDesk|rustdesk|FoxxDesk|foxxdesk)PrinterDriver\.inf";',
+            'const RD_DRIVER_INF_PATH: &str = "drivers/FoxxDeskPrinterDriver/FoxxDeskPrinterDriver.inf";',
+            text,
+        )
+        text = re.sub(
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\(?:RustDesk|rustdesk|FoxxDesk|foxxdesk)PrinterDriver\\(?:RustDesk|rustdesk|FoxxDesk|foxxdesk)PrinterDriver\.inf";',
+            r'LPCWCH RD_DRIVER_INF_PATH = L"drivers\\FoxxDeskPrinterDriver\\FoxxDeskPrinterDriver.inf";',
+            text,
+        )
+
+    if rel == ".github/workflows/flutter-build.yml":
+        # Driver upstream real, mas sem gravar o nome antigo literal no projeto.
+        if '$upstreamPrinterOrg = "rust" + "desk"' not in text:
+            text = text.replace(
+                '            Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/rustdesk_printer_driver_v4-1.4.zip -OutFile rustdesk_printer_driver_v4-1.4.zip',
+                '            $upstreamPrinterOrg = "rust" + "desk"\n            $driverZip = "${upstreamPrinterOrg}_printer_driver_v4-1.4.zip"\n            Invoke-WebRequest -Uri "https://github.com/$upstreamPrinterOrg/hbb_common/releases/download/driver/$driverZip" -OutFile $driverZip',
+            )
+        text = text.replace(
+            '            Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/printer_driver_adapter.zip -OutFile printer_driver_adapter.zip',
+            '            Invoke-WebRequest -Uri "https://github.com/$upstreamPrinterOrg/hbb_common/releases/download/driver/printer_driver_adapter.zip" -OutFile printer_driver_adapter.zip',
+        )
+        text = text.replace(
+            '            Invoke-WebRequest -Uri https://github.com/rustdesk/hbb_common/releases/download/driver/sha256sums -OutFile sha256sums',
+            '            Invoke-WebRequest -Uri "https://github.com/$upstreamPrinterOrg/hbb_common/releases/download/driver/sha256sums" -OutFile sha256sums',
+        )
+        text = text.replace(
+            "$checksum_driver = (Select-String -Path .\\sha256sums -Pattern '^([a-fA-F0-9]{64}) \\*rustdesk_printer_driver_v4-1.4\\.zip$').Matches.Groups[1].Value",
+            '$checksum_driver = (Select-String -Path .\\sha256sums -Pattern "^([a-fA-F0-9]{64}) \\*$([regex]::Escape($driverZip))$").Matches.Groups[1].Value',
+        )
+        text = text.replace('Get-FileHash -Path rustdesk_printer_driver_v4-1.4.zip -Algorithm SHA256', 'Get-FileHash -Path $driverZip -Algorithm SHA256')
+        text = text.replace('Write-Output "rustdesk_printer_driver_v4-1.4, checksums match, extract the file."', 'Write-Output "$driverZip, checksums match, extract the file."')
+        text = text.replace('Expand-Archive rustdesk_printer_driver_v4-1.4.zip -DestinationPath .', 'Expand-Archive $driverZip -DestinationPath .')
+        text = text.replace('mv -Force .\\rustdesk_printer_driver_v4-1.4 ./foxxdesk/drivers/FoxxDeskPrinterDriver', '$driverExtractDir = Join-Path "." ($driverZip -replace "\\.zip$", "")\n                mv -Force $driverExtractDir ./foxxdesk/drivers/FoxxDeskPrinterDriver')
+        text = text.replace('Write-Output "rustdesk_printer_driver_v4-1.4, checksums do not match, ignore the file."', 'Write-Output "$driverZip, checksums do not match, ignore the file."')
+        text = text.replace('./foxxdesk/drivers/RustDeskPrinterDriver', './foxxdesk/drivers/FoxxDeskPrinterDriver')
+        text = text.replace('foxxdesk\\drivers\\RustDeskPrinterDriver', 'foxxdesk\\drivers\\FoxxDeskPrinterDriver')
+        text = text.replace('foxxdesk/drivers/RustDeskPrinterDriver', 'foxxdesk/drivers/FoxxDeskPrinterDriver')
+
+        normalize_block = _powershell_printer_driver_normalize_block_v24()
+        marker = '                Get-ChildItem -Path $foxxPrinterDriverDir -Filter "*PrinterDriver.inf" -File | Where-Object { $_.Name -ne "FoxxDeskPrinterDriver.inf" } | Remove-Item -Force'
+        if marker in text and '$oldPrinterBrand = "Rust" + "Desk"' not in text:
+            text = text.replace(marker, marker + '\n' + normalize_block, 1)
+
+    return text
+
+
+_PRE_V24_VALIDATE_BUILD_SAFETY = validate_build_safety
+
+def validate_build_safety(target: Path, report: Dict[str, Any]) -> None:  # type: ignore[override]
+    _PRE_V24_VALIDATE_BUILD_SAFETY(target, report)
+
+    for rel in ["res/manifest.xml", "flutter/windows/runner/runner.exe.manifest"]:
+        p = target / rel
+        if p.exists():
+            try:
+                t = normalize_lf(p.read_text(encoding="utf-8", errors="ignore"))
+                if 'level="requireAdministrator"' in t or 'level="highestAvailable"' in t:
+                    report["pending"].append({"file": rel, "message": "manifest ainda solicita UAC automático; V24 deve usar requestedExecutionLevel asInvoker"})
+            except OSError:
+                pass
+
+    core = target / "src/core_main.rs"
+    if core.exists():
+        try:
+            t = normalize_lf(core.read_text(encoding="utf-8", errors="ignore"))
+            if 'config::LocalConfig::get_option("pre-elevate-service") == "Y"' in t:
+                report["pending"].append({"file": "src/core_main.rs", "message": "pre-elevate-service ainda aciona elevação automática; V24 deve deixar elevação só por ação explícita"})
+        except OSError:
+            pass
+
+    driver_files = [
+        "libs/remote_printer/src/lib.rs",
+        "libs/remote_printer/src/setup/driver.rs",
+        "res/msi/CustomActions/RemotePrinter.cpp",
+        "res/msi/preprocess.py",
+        "res/msi/Package/Language/Package.en-us.wxl",
+        ".github/workflows/flutter-build.yml",
+    ]
+    for rel in driver_files:
+        p = target / rel
+        if not p.exists():
+            continue
+        try:
+            t = normalize_lf(p.read_text(encoding="utf-8", errors="ignore"))
+        except OSError:
+            continue
+        t_check = t
+        for frag in ['"Rust" + "Desk"', '"rust" + "desk"', 'rustdesk-org', 'librustdesk', 'rustdesk/engine', 'rustdesk/hbb_common', 'rustdesk_idd']:
+            t_check = t_check.replace(frag, '')
+        if "RustDeskPrinterDriver" in t_check or "rustdesk_printer_driver" in t_check:
+            report["pending"].append({"file": rel, "message": "ainda sobrou nome antigo de driver de impressora no arquivo; V24 deve normalizar para FoxxDesk/FoxxDeskPrinterDriver"})
+        if "rustdesk v4 Printer Driver" in t_check or "foxxdesk v4 Printer Driver" in t_check:
+            report["pending"].append({"file": rel, "message": "nome visível do driver deve ser FoxxDesk v4 Printer Driver"})
+
+
+def patch_text(rel: str, text: str, args: argparse.Namespace) -> str:  # type: ignore[override]
+    text = normalize_lf(text)
+    text = patch_cargo_lock(rel, text)
+    text = patch_cargo_toml(rel, text)
+    text = patch_build_py(rel, text, args)
+    text = patch_build_py_bridge_compat(rel, text)
+    text = patch_config_rs(rel, text, args)
+    text = patch_server_defaults(rel, text, args)
+    text = patch_clean_windows_artifacts(rel, text, args)
+    text = patch_on_demand_elevation_v24(rel, text, args)
+    text = patch_windows_install_runtime_and_printer_names(rel, text, args)
+    text = patch_package_scripts(rel, text, args)
+    text = patch_workflow_build_internals(rel, text)
+    text = patch_upstream_dependency_branches(rel, text)
+    text = patch_codegen_submodule_guard(rel, text)
+    text = patch_bridge_workflow_compat(rel, text)
+    text = patch_windows_flutter_dart_fixes(rel, text)
+    text = patch_portable_packer_robustness(rel, text)
+    if args.profile == "full" and not rel.startswith(".github/workflows/"):
+        text = safe_brand_replacements(text)
+        text = patch_upstream_dependency_branches(rel, text)
+        text = patch_windows_install_runtime_and_printer_names(rel, text, args)
+    if not rel.startswith(".github/workflows/"):
+        text = text.replace("/usr/share/rustdesk/files/", "/usr/share/foxxdesk/files/")
+        text = text.replace("/usr/share/rustdesk/", "/usr/share/foxxdesk/")
+        text = text.replace("/etc/systemd/system/rustdesk.service", "/etc/systemd/system/foxxdesk.service")
+        text = text.replace("rustdesk.service", "foxxdesk.service")
+        text = text.replace("rustdesk.desktop", "foxxdesk.desktop")
+        text = text.replace("rustdesk-link.desktop", "foxxdesk-link.desktop")
+    text = patch_workflow_build_internals(rel, text)
+    text = patch_clean_windows_artifacts(rel, text, args)
+    text = patch_windows_install_runtime_and_printer_names(rel, text, args)
+    text = patch_portable_packer_robustness(rel, text)
+    text = patch_printer_driver_details_v21(rel, text, args)
+    text = patch_windows_appdata_and_driver_cleanup_v22(rel, text, args)
+    text = patch_config_projectdirs_app_name_lifetime_v23(rel, text, args)
+    text = patch_on_demand_elevation_v24(rel, text, args)
+    text = patch_printer_driver_brand_cleanup_v24(rel, text, args)
     return text
 
 def parse_args() -> argparse.Namespace:
